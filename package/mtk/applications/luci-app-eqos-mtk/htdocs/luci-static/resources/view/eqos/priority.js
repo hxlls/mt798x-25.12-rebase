@@ -19,8 +19,8 @@ return view.extend({
 	render: function(data) {
 		var m, s, o;
 
-		m = new form.Map('eqos', _('EQoS'),
-			_('Network speed control service for MediaTek HNAT.'));
+		m = new form.Map('eqos', _('Packet priority settings'),
+			_('Packet priority settings for MediaTek HNAT.'));
 
 		s = m.section(form.NamedSection, 'config', 'eqos', _('Packet priority settings'));
 		s.anonymous = true;

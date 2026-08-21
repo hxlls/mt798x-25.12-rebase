@@ -92,7 +92,10 @@ msgid "Packets"
 msgstr ""
 
 msgid "Packet priority settings"
-msgstr "包优先级设置"
+msgstr ""
+
+msgid "Packet priority settings for MediaTek HNAT."
+msgstr ""
 
 msgid "Packets/s"
 msgstr ""
