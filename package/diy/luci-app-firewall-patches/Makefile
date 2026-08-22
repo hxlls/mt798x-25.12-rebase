@@ -1,11 +1,8 @@
 include $(TOPDIR)/rules.mk
 
-PKG_NAME:=luci-app-firewall-patches
-PKG_VERSION:=1.0
-PKG_RELEASE:=1
-
 LUCI_TITLE:=Hide flow offloading type from firewall
 LUCI_DEPENDS:=+luci-app-firewall
+LUCI_MENU:=Applications
 
 include $(TOPDIR)/feeds/luci/luci.mk
 
@@ -23,5 +20,3 @@ define Build/Patch
 		fi; \
 	done
 endef
-
-# call BuildPackage - OpenWrt buildroot signature
