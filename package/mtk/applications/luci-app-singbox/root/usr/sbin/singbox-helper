@@ -1,0 +1,184 @@
+#!/bin/sh
+# singbox-helper: Generate sing-box config from UCI
+
+CONF="singbox"
+
+uci_get() {
+	uci -q get "$CONF.$1.$2" 2>/dev/null
+}
+
+generate_outbound() {
+	local section="$1"
+	local type=$(uci_get "$section" type)
+	local server=$(uci_get "$section" server)
+	local port=$(uci_get "$section" server_port)
+	local name=$(uci_get "$section" name)
+	local tag=$(uci_get "$section" tag)
+
+	[ -z "$type" ] && return
+	[ -z "$server" ] && return
+
+	[ -z "$name" ] && name="$server:$port"
+	[ -z "$tag" ] && tag="$name"
+
+	case "$type" in
+		shadowsocks)
+			cat <<EOF
+		{
+			"type": "shadowsocks",
+			"tag": "$tag",
+			"server": "$server",
+			"server_port": $(uci_get "$section" server_port),
+			"method": "$(uci_get "$section" method)",
+			"password": "$(uci_get "$section" password)"
+		}
+EOF
+			;;
+		vmess)
+			cat <<EOF
+		{
+			"type": "vmess",
+			"tag": "$tag",
+			"server": "$server",
+			"server_port": $(uci_get "$section" server_port),
+			"uuid": "$(uci_get "$section" uuid)",
+			"alter_id": $(uci_get "$section" alter_id),
+			"security": "$(uci_get "$section" security)"
+		}
+EOF
+			;;
+		vless)
+			cat <<EOF
+		{
+			"type": "vless",
+			"tag": "$tag",
+			"server": "$server",
+			"server_port": $(uci_get "$section" server_port),
+			"uuid": "$(uci_get "$section" uuid)",
+			"flow": "$(uci_get "$section" flow)"
+		}
+EOF
+			;;
+		trojan)
+			cat <<EOF
+		{
+			"type": "trojan",
+			"tag": "$tag",
+			"server": "$server",
+			"server_port": $(uci_get "$section" server_port),
+			"password": "$(uci_get "$section" password)"
+		}
+EOF
+			;;
+		hysteria2)
+			cat <<EOF
+		{
+			"type": "hysteria2",
+			"tag": "$tag",
+			"server": "$server",
+			"server_port": $(uci_get "$section" server_port),
+			"password": "$(uci_get "$section" password)"
+		}
+EOF
+			;;
+	esac
+}
+
+generate() {
+	local enabled=$(uci_get global enabled)
+	[ "$enabled" = "0" ] && { echo '{"error":"disabled"}'; exit 1; }
+
+	local log_level=$(uci_get global log_level)
+	local mixed_port=$(uci_get global mixed_port)
+	local tun_enabled=$(uci_get global tun_enabled)
+
+	# Build outbounds
+	local outbounds=""
+	local first=1
+	for section in $(uci show "$CONF" 2>/dev/null | grep "=node$" | sed 's/=node$//' | sed "s/$CONF\.//"); do
+		local node_enabled=$(uci_get "$section" enabled)
+		[ "$node_enabled" = "0" ] && continue
+
+		local ob=$(generate_outbound "$section")
+		[ -z "$ob" ] && continue
+
+		if [ "$first" = "1" ]; then
+			outbounds="$ob"
+			first=0
+		else
+			outbounds="$outbounds,
+$ob"
+		fi
+	done
+
+	# Generate config
+	cat <<ENDJSON
+{
+	"log": {
+		"level": "${log_level:-info}",
+		"output": "/tmp/singbox.log"
+	},
+	"dns": {
+		"servers": [
+			{
+				"tag": "google",
+				"address": "tls://8.8.8.8"
+			},
+			{
+				"tag": "local",
+				"address": "223.5.5.5",
+				"detour": "direct"
+			}
+		],
+		"rules": [
+			{
+				"outbound": "any",
+				"server": "local"
+			}
+		]
+	},
+	"inbounds": [
+		{
+			"type": "mixed",
+			"tag": "mixed-in",
+			"listen": "0.0.0.0",
+			"listen_port": ${mixed_port:-2080}
+		}
+	],
+	"outbounds": [
+		$outbounds,
+		{
+			"type": "direct",
+			"tag": "direct"
+		},
+		{
+			"type": "block",
+			"tag": "block"
+		},
+		{
+			"type": "dns",
+			"tag": "dns-out"
+		}
+	],
+	"route": {
+		"rules": [
+			{
+				"protocol": "dns",
+				"outbound": "dns-out"
+			}
+		],
+		"final": "$(echo "$outbounds" | head -1 | grep -o '"tag": "[^"]*"' | head -1 | sed 's/"tag": "//' | sed 's/"//' || echo 'direct')"
+	}
+}
+ENDJSON
+}
+
+case "$1" in
+	generate)
+		generate
+		;;
+	*)
+		echo "Usage: $0 {generate}"
+		exit 1
+		;;
+esac

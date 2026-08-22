@@ -1,0 +1,326 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+msgid "Overview"
+msgstr "概览"
+
+msgid "Subscriptions"
+msgstr "订阅管理"
+
+msgid "Nodes"
+msgstr "节点列表"
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "Sing-Box"
+msgstr "Sing-Box"
+
+msgid "Sing-Box proxy service overview and management."
+msgstr "Sing-Box 代理服务概览与管理。"
+
+msgid "Service Status"
+msgstr "服务状态"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "Stopped"
+msgstr "已停止"
+
+msgid "Version"
+msgstr "版本"
+
+msgid "PID"
+msgstr "PID"
+
+msgid "Uptime"
+msgstr "运行时间"
+
+msgid "Quick Settings"
+msgstr "快速设置"
+
+msgid "Enable"
+msgstr "启用"
+
+msgid "Enable Sing-Box proxy service."
+msgstr "启用 Sing-Box 代理服务。"
+
+msgid "Log Level"
+msgstr "日志级别"
+
+msgid "Mixed Port"
+msgstr "混合端口"
+
+msgid "HTTP/SOCKS5 mixed proxy port."
+msgstr "HTTP/SOCKS5 混合代理端口。"
+
+msgid "TUN Mode"
+msgstr "TUN 模式"
+
+msgid "Enable TUN for transparent proxy."
+msgstr "启用 TUN 透明代理。"
+
+msgid "TUN Stack"
+msgstr "TUN 协议栈"
+
+msgid "Clash API"
+msgstr "Clash API"
+
+msgid "Enable Clash-compatible API for external controllers."
+msgstr "启用 Clash 兼容的 API，用于外部控制器。"
+
+msgid "Clash API Port"
+msgstr "Clash API 端口"
+
+msgid "Clash API Secret"
+msgstr "Clash API 密钥"
+
+msgid "Service Log"
+msgstr "服务日志"
+
+msgid "Recent Log"
+msgstr "最近日志"
+
+msgid "Manage subscription links and import nodes."
+msgstr "管理订阅链接并导入节点。"
+
+msgid "Subscriptions"
+msgstr "订阅"
+
+msgid "Name"
+msgstr "名称"
+
+msgid "Subscription name for identification."
+msgstr "订阅名称，用于标识。"
+
+msgid "URL"
+msgstr "URL"
+
+msgid "Subscription URL. Supports Clash, V2Ray, SIP008, and base64 encoded formats."
+msgstr "订阅 URL，支持 Clash、V2Ray、SIP008 和 Base64 编码格式。"
+
+msgid "User Agent"
+msgstr "User Agent"
+
+msgid "Auto Update"
+msgstr "自动更新"
+
+msgid "Update Interval"
+msgstr "更新间隔"
+
+msgid "Every 6 hours"
+msgstr "每 6 小时"
+
+msgid "Every 12 hours"
+msgstr "每 12 小时"
+
+msgid "Every 24 hours"
+msgstr "每 24 小时"
+
+msgid "Every 48 hours"
+msgstr "每 48 小时"
+
+msgid "Every 72 hours"
+msgstr "每 72 小时"
+
+msgid "Update Now"
+msgstr "立即更新"
+
+msgid "Updating..."
+msgstr "更新中..."
+
+msgid "Last Update"
+msgstr "最后更新"
+
+msgid "Never"
+msgstr "从未"
+
+msgid "Nodes"
+msgstr "节点数"
+
+msgid "Successfully imported %d nodes."
+msgstr "成功导入 %d 个节点。"
+
+msgid "Failed to fetch subscription. Check URL and network."
+msgstr "获取订阅失败，请检查 URL 和网络连接。"
+
+msgid "No valid nodes found in subscription."
+msgstr "订阅中未找到有效节点。"
+
+msgid "Please enter subscription URL first."
+msgstr "请先输入订阅 URL。"
+
+msgid "Manage proxy nodes. Click on a node to edit its settings."
+msgstr "管理代理节点，点击节点可编辑设置。"
+
+msgid "Protocol"
+msgstr "协议"
+
+msgid "Server"
+msgstr "服务器"
+
+msgid "Port"
+msgstr "端口"
+
+msgid "Encryption"
+msgstr "加密方式"
+
+msgid "Password"
+msgstr "密码"
+
+msgid "UUID"
+msgstr "UUID"
+
+msgid "Alter ID"
+msgstr "Alter ID"
+
+msgid "Flow"
+msgstr "Flow"
+
+msgid "Obfs Type"
+msgstr "混淆类型"
+
+msgid "Obfs Password"
+msgstr "混淆密码"
+
+msgid "Transport"
+msgstr "传输协议"
+
+msgid "Path"
+msgstr "路径"
+
+msgid "Host"
+msgstr "Host"
+
+msgid "Service Name"
+msgstr "Service Name"
+
+msgid "TLS"
+msgstr "TLS"
+
+msgid "SNI"
+msgstr "SNI"
+
+msgid "Fingerprint"
+msgstr "指纹"
+
+msgid "Tag"
+msgstr "标签"
+
+msgid "Custom tag for this outbound. Leave empty to auto-generate."
+msgstr "自定义出站标签，留空自动生成。"
+
+msgid "Test"
+msgstr "测试"
+
+msgid "Testing..."
+msgstr "测试中..."
+
+msgid "Failed"
+msgstr "失败"
+
+msgid "Error"
+msgstr "错误"
+
+msgid "Please configure server and port first."
+msgstr "请先配置服务器和端口。"
+
+msgid "Advanced settings and configuration preview."
+msgstr "高级设置和配置预览。"
+
+msgid "Inbound Settings"
+msgstr "入站设置"
+
+msgid "Mixed Port"
+msgstr "混合端口"
+
+msgid "HTTP and SOCKS5 mixed proxy port. Clients connect to this port."
+msgstr "HTTP 和 SOCKS5 混合代理端口，客户端连接此端口。"
+
+msgid "SOCKS5 Port"
+msgstr "SOCKS5 端口"
+
+msgid "Dedicated SOCKS5 proxy port. Set 0 to disable."
+msgstr "独立的 SOCKS5 代理端口，设为 0 禁用。"
+
+msgid "HTTP Port"
+msgstr "HTTP 端口"
+
+msgid "Dedicated HTTP proxy port. Set 0 to disable."
+msgstr "独立的 HTTP 代理端口，设为 0 禁用。"
+
+msgid "TUN Settings"
+msgstr "TUN 设置"
+
+msgid "Enable TUN"
+msgstr "启用 TUN"
+
+msgid "Enable TUN device for transparent proxy. Requires root privileges."
+msgstr "启用 TUN 设备进行透明代理，需要 root 权限。"
+
+msgid "TUN Address"
+msgstr "TUN 地址"
+
+msgid "TUN device address in CIDR notation."
+msgstr "TUN 设备地址，CIDR 格式。"
+
+msgid "Auto Route"
+msgstr "自动路由"
+
+msgid "Automatically configure routes for transparent proxy."
+msgstr "自动配置透明代理路由。"
+
+msgid "Stack"
+msgstr "协议栈"
+
+msgid "Strict Route"
+msgstr "严格路由"
+
+msgid "Enable strict route to prevent routing loops."
+msgstr "启用严格路由以防止路由环路。"
+
+msgid "Clash API"
+msgstr "Clash API"
+
+msgid "Enable Clash API"
+msgstr "启用 Clash API"
+
+msgid "Enable Clash-compatible RESTful API. Allows using yacd/metacubexd dashboard."
+msgstr "启用 Clash 兼容的 RESTful API，可使用 yacd/metacubexd 面板。"
+
+msgid "API Port"
+msgstr "API 端口"
+
+msgid "API Secret"
+msgstr "API 密钥"
+
+msgid "Secret for API authentication. Leave empty for no auth."
+msgstr "API 认证密钥，留空则无需认证。"
+
+msgid "External Controller"
+msgstr "外部控制器"
+
+msgid "Address to serve the API. Default: 0.0.0.0:9090"
+msgstr "API 监听地址，默认：0.0.0.0:9090"
+
+msgid "Log Settings"
+msgstr "日志设置"
+
+msgid "Log Output"
+msgstr "日志输出"
+
+msgid "Log file path. Leave empty for stdout only."
+msgstr "日志文件路径，留空则仅输出到 stdout。"
+
+msgid "Configuration Preview"
+msgstr "配置预览"
+
+msgid "Generated Config"
+msgstr "生成的配置"
+
+msgid "No configuration generated. Enable the service first."
+msgstr "未生成配置，请先启用服务。"

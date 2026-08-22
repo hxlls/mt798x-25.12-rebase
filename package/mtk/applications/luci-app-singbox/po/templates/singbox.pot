@@ -1,0 +1,326 @@
+msgid ""
+msgstr ""
+
+msgid "Overview"
+msgstr ""
+
+msgid "Subscriptions"
+msgstr ""
+
+msgid "Nodes"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "Sing-Box"
+msgstr ""
+
+msgid "Sing-Box proxy service overview and management."
+msgstr ""
+
+msgid "Service Status"
+msgstr ""
+
+msgid "Status"
+msgstr ""
+
+msgid "Running"
+msgstr ""
+
+msgid "Stopped"
+msgstr ""
+
+msgid "Version"
+msgstr ""
+
+msgid "PID"
+msgstr ""
+
+msgid "Uptime"
+msgstr ""
+
+msgid "Quick Settings"
+msgstr ""
+
+msgid "Enable"
+msgstr ""
+
+msgid "Enable Sing-Box proxy service."
+msgstr ""
+
+msgid "Log Level"
+msgstr ""
+
+msgid "Mixed Port"
+msgstr ""
+
+msgid "HTTP/SOCKS5 mixed proxy port."
+msgstr ""
+
+msgid "TUN Mode"
+msgstr ""
+
+msgid "Enable TUN for transparent proxy."
+msgstr ""
+
+msgid "TUN Stack"
+msgstr ""
+
+msgid "Clash API"
+msgstr ""
+
+msgid "Enable Clash-compatible API for external controllers."
+msgstr ""
+
+msgid "Clash API Port"
+msgstr ""
+
+msgid "Clash API Secret"
+msgstr ""
+
+msgid "Service Log"
+msgstr ""
+
+msgid "Recent Log"
+msgstr ""
+
+msgid "Manage subscription links and import nodes."
+msgstr ""
+
+msgid "Subscriptions"
+msgstr ""
+
+msgid "Name"
+msgstr ""
+
+msgid "Subscription name for identification."
+msgstr ""
+
+msgid "URL"
+msgstr ""
+
+msgid "Subscription URL. Supports Clash, V2Ray, SIP008, and base64 encoded formats."
+msgstr ""
+
+msgid "User Agent"
+msgstr ""
+
+msgid "Auto Update"
+msgstr ""
+
+msgid "Update Interval"
+msgstr ""
+
+msgid "Every 6 hours"
+msgstr ""
+
+msgid "Every 12 hours"
+msgstr ""
+
+msgid "Every 24 hours"
+msgstr ""
+
+msgid "Every 48 hours"
+msgstr ""
+
+msgid "Every 72 hours"
+msgstr ""
+
+msgid "Update Now"
+msgstr ""
+
+msgid "Updating..."
+msgstr ""
+
+msgid "Last Update"
+msgstr ""
+
+msgid "Never"
+msgstr ""
+
+msgid "Nodes"
+msgstr ""
+
+msgid "Successfully imported %d nodes."
+msgstr ""
+
+msgid "Failed to fetch subscription. Check URL and network."
+msgstr ""
+
+msgid "No valid nodes found in subscription."
+msgstr ""
+
+msgid "Please enter subscription URL first."
+msgstr ""
+
+msgid "Manage proxy nodes. Click on a node to edit its settings."
+msgstr ""
+
+msgid "Protocol"
+msgstr ""
+
+msgid "Server"
+msgstr ""
+
+msgid "Port"
+msgstr ""
+
+msgid "Encryption"
+msgstr ""
+
+msgid "Password"
+msgstr ""
+
+msgid "UUID"
+msgstr ""
+
+msgid "Alter ID"
+msgstr ""
+
+msgid "Flow"
+msgstr ""
+
+msgid "Obfs Type"
+msgstr ""
+
+msgid "Obfs Password"
+msgstr ""
+
+msgid "Transport"
+msgstr ""
+
+msgid "Path"
+msgstr ""
+
+msgid "Host"
+msgstr ""
+
+msgid "Service Name"
+msgstr ""
+
+msgid "TLS"
+msgstr ""
+
+msgid "SNI"
+msgstr ""
+
+msgid "Fingerprint"
+msgstr ""
+
+msgid "Tag"
+msgstr ""
+
+msgid "Custom tag for this outbound. Leave empty to auto-generate."
+msgstr ""
+
+msgid "Test"
+msgstr ""
+
+msgid "Testing..."
+msgstr ""
+
+msgid "Failed"
+msgstr ""
+
+msgid "Error"
+msgstr ""
+
+msgid "Please configure server and port first."
+msgstr ""
+
+msgid "Advanced settings and configuration preview."
+msgstr ""
+
+msgid "Inbound Settings"
+msgstr ""
+
+msgid "Mixed Port"
+msgstr ""
+
+msgid "HTTP and SOCKS5 mixed proxy port. Clients connect to this port."
+msgstr ""
+
+msgid "SOCKS5 Port"
+msgstr ""
+
+msgid "Dedicated SOCKS5 proxy port. Set 0 to disable."
+msgstr ""
+
+msgid "HTTP Port"
+msgstr ""
+
+msgid "Dedicated HTTP proxy port. Set 0 to disable."
+msgstr ""
+
+msgid "TUN Settings"
+msgstr ""
+
+msgid "Enable TUN"
+msgstr ""
+
+msgid "Enable TUN device for transparent proxy. Requires root privileges."
+msgstr ""
+
+msgid "TUN Address"
+msgstr ""
+
+msgid "TUN device address in CIDR notation."
+msgstr ""
+
+msgid "Auto Route"
+msgstr ""
+
+msgid "Automatically configure routes for transparent proxy."
+msgstr ""
+
+msgid "Stack"
+msgstr ""
+
+msgid "Strict Route"
+msgstr ""
+
+msgid "Enable strict route to prevent routing loops."
+msgstr ""
+
+msgid "Clash API"
+msgstr ""
+
+msgid "Enable Clash API"
+msgstr ""
+
+msgid "Enable Clash-compatible RESTful API. Allows using yacd/metacubexd dashboard."
+msgstr ""
+
+msgid "API Port"
+msgstr ""
+
+msgid "API Secret"
+msgstr ""
+
+msgid "Secret for API authentication. Leave empty for no auth."
+msgstr ""
+
+msgid "External Controller"
+msgstr ""
+
+msgid "Address to serve the API. Default: 0.0.0.0:9090"
+msgstr ""
+
+msgid "Log Settings"
+msgstr ""
+
+msgid "Log Output"
+msgstr ""
+
+msgid "Log file path. Leave empty for stdout only."
+msgstr ""
+
+msgid "Configuration Preview"
+msgstr ""
+
+msgid "Generated Config"
+msgstr ""
+
+msgid "No configuration generated. Enable the service first."
+msgstr ""

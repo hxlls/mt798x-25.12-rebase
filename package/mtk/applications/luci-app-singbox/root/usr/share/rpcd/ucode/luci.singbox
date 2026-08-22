@@ -1,0 +1,501 @@
+'use strict';
+import { readfile, writefile } from 'fs';
+import { popen } from 'process';
+
+const UCI_CONFIG = 'singbox';
+
+function uci_get(option, section, key) {
+	let cmd = sprintf('uci -q get %s.%s.%s 2>/dev/null', UCI_CONFIG, section || '', key || option);
+	let f = popen(cmd, 'r');
+	let val = trim(f.read('line') || '');
+	f.close();
+	return val;
+}
+
+function uci_set(section, key, value) {
+	let cmd = sprintf('uci -q set %s.%s.%s=\'%s\' 2>/dev/null', UCI_CONFIG, section, key, value);
+	popen(cmd, 'r').close();
+}
+
+function uci_add(type, values) {
+	let cmd = sprintf('uci -q add %s %s 2>/dev/null', UCI_CONFIG, type);
+	let f = popen(cmd, 'r');
+	let name = trim(f.read('line') || '');
+	f.close();
+
+	if (name && values) {
+		for (let k in values) {
+			uci_set(name, k, values[k]);
+		}
+	}
+	return name;
+}
+
+function uci_delete(section) {
+	let cmd = sprintf('uci -q delete %s.%s 2>/dev/null', UCI_CONFIG, section);
+	popen(cmd, 'r').close();
+}
+
+function uci_commit() {
+	popen(sprintf('uci -q commit %s 2>/dev/null', UCI_CONFIG), 'r').close();
+}
+
+function getSections(type) {
+	let cmd = sprintf('uci -q show %s 2>/dev/null | grep "^%s\\." | head -50', UCI_CONFIG, UCI_CONFIG);
+	let f = popen(cmd, 'r');
+	let sections = {};
+	let line;
+	while ((line = f.read('line')) !== null) {
+		line = trim(line);
+		let m = match(line, /^singbox\.(@?[a-z0-9_-]+)\.([a-z_]+)=(.*)/);
+		if (m) {
+			let sec = m[1];
+			let key = m[2];
+			let val = m[3];
+			if (!sections[sec]) sections[sec] = { '.name': sec };
+			sections[sec][key] = val;
+		}
+	}
+	f.close();
+
+	let result = [];
+	for (let k in sections) {
+		if (!type || sections[k]['.type'] === type) {
+			push(result, sections[k]);
+		}
+	}
+	return result;
+}
+
+function getGlobal() {
+	return {
+		enabled: uci_get('global', 'enabled') || '0',
+		log_level: uci_get('global', 'log_level') || 'info',
+		mixed_port: uci_get('global', 'mixed_port') || '2080',
+		socks_port: uci_get('global', 'socks_port') || '1080',
+		http_port: uci_get('global', 'http_port') || '1081',
+		tun_enabled: uci_get('global', 'tun_enabled') || '0',
+		tun_address: uci_get('global', 'tun_address') || '172.19.0.1/30',
+		tun_auto_route: uci_get('global', 'tun_auto_route') || '1',
+		tun_stack: uci_get('global', 'tun_stack') || 'system',
+		clash_api_enabled: uci_get('global', 'clash_api_enabled') || '0',
+		clash_api_port: uci_get('global', 'clash_api_port') || '9090',
+		clash_api_secret: uci_get('global', 'clash_api_secret') || '',
+	};
+}
+
+function getSubscribes() {
+	return getSections('subscribe');
+}
+
+function getNodes() {
+	return getSections('node');
+}
+
+function getStatus() {
+	let running = false;
+	let pid = '';
+	let f = popen('pgrep -f "sing-box run" 2>/dev/null', 'r');
+	let line = f.read('line');
+	if (line) {
+		running = true;
+		pid = trim(line);
+	}
+	f.close();
+
+	let version = '';
+	f = popen('sing-box version 2>/dev/null | head -1', 'r');
+	line = f.read('line');
+	if (line) version = trim(line);
+	f.close();
+
+	let uptime = '';
+	if (running && pid) {
+		f = popen(sprintf('ps -o etime= -p %s 2>/dev/null', pid), 'r');
+		line = f.read('line');
+		if (line) uptime = trim(line);
+		f.close();
+	}
+
+	return { running, pid, version, uptime };
+}
+
+function fetchSubscribe(url, ua) {
+	if (!url) return null;
+
+	let uaStr = ua || 'sing-box';
+	let tmpFile = '/tmp/singbox_sub_' + time() + '.txt';
+	let cmd = sprintf('curl -sL -o %s -A "%s" --connect-timeout 10 --max-time 30 "%s" 2>/dev/null && cat %s && rm -f %s',
+		tmpFile, uaStr, url, tmpFile, tmpFile);
+
+	let f = popen(cmd, 'r');
+	let content = f.read('all');
+	f.close();
+
+	if (!content) return null;
+
+	// Try base64 decode
+	let decoded = '';
+	try {
+		let df = popen(sprintf('echo "%s" | base64 -d 2>/dev/null', trim(content)), 'r');
+		decoded = df.read('all');
+		df.close();
+	} catch (e) {
+		decoded = content;
+	}
+
+	return decoded || content;
+}
+
+function parseNodes(content) {
+	if (!content) return [];
+
+	let nodes = [];
+	let lines = split(trim(content), '\n');
+
+	for (let line in lines) {
+		line = trim(line);
+		if (!line) continue;
+
+		let node = null;
+		let proto = '';
+
+		if (substr(line, 0, 5) === 'ss://') {
+			proto = 'shadowsocks';
+			node = parseShadowsocks(line);
+		} else if (substr(line, 0, 7) === 'vmess://') {
+			proto = 'vmess';
+			node = parseVmess(line);
+		} else if (substr(line, 0, 7) === 'vless://') {
+			proto = 'vless';
+			node = parseVless(line);
+		} else if (substr(line, 0, 9) === 'trojan://') {
+			proto = 'trojan';
+			node = parseTrojan(line);
+		} else if (substr(line, 0, 10) === 'hysteria2://' || substr(line, 0, 4) === 'hy2://') {
+			proto = 'hysteria2';
+			node = parseHysteria2(line);
+		}
+
+		if (node) {
+			node.type = proto;
+			push(nodes, node);
+		}
+	}
+
+	return nodes;
+}
+
+function parseShadowsocks(url) {
+	// ss://base64(method:password)@server:port#name
+	let body = substr(url, 5);
+	let hashIdx = index(body, '#');
+	let name = '';
+	if (hashIdx >= 0) {
+		name = urlDecode(substr(body, hashIdx + 1));
+		body = substr(body, 0, hashIdx);
+	}
+
+	let atIdx = index(body, '@');
+	if (atIdx < 0) {
+		// ss://base64(method:password@server:port)
+		let decoded = b64decode(body);
+		if (!decoded) return null;
+		atIdx = index(decoded, '@');
+		if (atIdx < 0) return null;
+		let method = substr(decoded, 0, index(decoded, ':'));
+		let rest = substr(decoded, index(decoded, ':') + 1);
+		let passPort = rest;
+		let serverIdx = lastIndexOf(rest, ':');
+		if (serverIdx < 0) return null;
+		let password = substr(rest, 0, serverIdx);
+		let port = substr(rest, serverIdx + 1);
+		return { name, server: '', server_port: port, method, password };
+	}
+
+	let userInfo = b64decode(substr(body, 0, atIdx));
+	if (!userInfo) {
+		userInfo = substr(body, 0, atIdx);
+	}
+	let serverInfo = substr(body, atIdx + 1);
+
+	let colonIdx = index(userInfo, ':');
+	if (colonIdx < 0) return null;
+	let method = substr(userInfo, 0, colonIdx);
+	let password = substr(userInfo, colonIdx + 1);
+
+	let lastColon = lastIndexOf(serverInfo, ':');
+	if (lastColon < 0) return null;
+	let server = substr(serverInfo, 0, lastColon);
+	let port = substr(serverInfo, lastColon + 1);
+
+	// Remove IPv6 brackets
+	if (substr(server, 0, 1) === '[') {
+		server = substr(server, 1, length(server) - 2);
+	}
+
+	return { name, server, server_port: port, method, password };
+}
+
+function parseVmess(url) {
+	// vmess://base64(json)
+	let b64 = substr(url, 8);
+	let decoded = b64decode(b64);
+	if (!decoded) return null;
+
+	let obj;
+	try {
+		obj = json(decoded);
+	} catch (e) {
+		return null;
+	}
+
+	return {
+		name: obj.ps || '',
+		server: obj.add || '',
+		server_port: str(obj.port || ''),
+		uuid: obj.id || '',
+		alter_id: str(obj.aid || '0'),
+		security: obj.scy || 'auto',
+		transport: obj.net || 'tcp',
+		path: obj.path || '',
+		host: obj.host || '',
+		tls: obj.tls === 'tls' ? '1' : '0',
+		sni: obj.sni || obj.host || '',
+	};
+}
+
+function parseVless(url) {
+	// vless://uuid@server:port?params#name
+	let body = substr(url, 7);
+	let hashIdx = index(body, '#');
+	let name = '';
+	if (hashIdx >= 0) {
+		name = urlDecode(substr(body, hashIdx + 1));
+		body = substr(body, 0, hashIdx);
+	}
+
+	let qIdx = index(body, '?');
+	let params = '';
+	if (qIdx >= 0) {
+		params = substr(body, qIdx + 1);
+		body = substr(body, 0, qIdx);
+	}
+
+	let atIdx = index(body, '@');
+	if (atIdx < 0) return null;
+	let uuid = substr(body, 0, atIdx);
+	let serverInfo = substr(body, atIdx + 1);
+
+	let lastColon = lastIndexOf(serverInfo, ':');
+	if (lastColon < 0) return null;
+	let server = substr(serverInfo, 0, lastColon);
+	let port = substr(serverInfo, lastColon + 1);
+
+	if (substr(server, 0, 1) === '[') {
+		server = substr(server, 1, length(server) - 2);
+	}
+
+	let result = { name, server, server_port: port, uuid, flow: '', transport: 'tcp', tls: '0', sni: '' };
+
+	if (params) {
+		let pairs = split(params, '&');
+		for (let pair in pairs) {
+			let eqIdx = index(pair, '=');
+			if (eqIdx < 0) continue;
+			let key = urlDecode(substr(pair, 0, eqIdx));
+			let val = urlDecode(substr(pair, eqIdx + 1));
+			if (key === 'flow') result.flow = val;
+			else if (key === 'type') result.transport = val;
+			else if (key === 'host') result.host = val;
+			else if (key === 'path') result.path = val;
+			else if (key === 'security') result.tls = val === 'tls' ? '1' : '0';
+			else if (key === 'sni') result.sni = val;
+		}
+	}
+
+	return result;
+}
+
+function parseTrojan(url) {
+	// trojan://password@server:port?params#name
+	let body = substr(url, 9);
+	let hashIdx = index(body, '#');
+	let name = '';
+	if (hashIdx >= 0) {
+		name = urlDecode(substr(body, hashIdx + 1));
+		body = substr(body, 0, hashIdx);
+	}
+
+	let qIdx = index(body, '?');
+	let params = '';
+	if (qIdx >= 0) {
+		params = substr(body, qIdx + 1);
+		body = substr(body, 0, qIdx);
+	}
+
+	let atIdx = index(body, '@');
+	if (atIdx < 0) return null;
+	let password = substr(body, 0, atIdx);
+	let serverInfo = substr(body, atIdx + 1);
+
+	let lastColon = lastIndexOf(serverInfo, ':');
+	if (lastColon < 0) return null;
+	let server = substr(serverInfo, 0, lastColon);
+	let port = substr(serverInfo, lastColon + 1);
+
+	if (substr(server, 0, 1) === '[') {
+		server = substr(server, 1, length(server) - 2);
+	}
+
+	let result = { name, server, server_port: port, password, transport: 'tcp', tls: '1', sni: server };
+
+	if (params) {
+		let pairs = split(params, '&');
+		for (let pair in pairs) {
+			let eqIdx = index(pair, '=');
+			if (eqIdx < 0) continue;
+			let key = urlDecode(substr(pair, 0, eqIdx));
+			let val = urlDecode(substr(pair, eqIdx + 1));
+			if (key === 'type') result.transport = val;
+			else if (key === 'host') result.host = val;
+			else if (key === 'sni') result.sni = val;
+		}
+	}
+
+	return result;
+}
+
+function parseHysteria2(url) {
+	// hy2://password@server:port?params#name
+	let body;
+	if (substr(url, 0, 10) === 'hysteria2://') {
+		body = substr(url, 10);
+	} else {
+		body = substr(url, 5);
+	}
+
+	let hashIdx = index(body, '#');
+	let name = '';
+	if (hashIdx >= 0) {
+		name = urlDecode(substr(body, hashIdx + 1));
+		body = substr(body, 0, hashIdx);
+	}
+
+	let qIdx = index(body, '?');
+	let params = '';
+	if (qIdx >= 0) {
+		params = substr(body, qIdx + 1);
+		body = substr(body, 0, qIdx);
+	}
+
+	let atIdx = index(body, '@');
+	if (atIdx < 0) return null;
+	let password = substr(body, 0, atIdx);
+	let serverInfo = substr(body, atIdx + 1);
+
+	let lastColon = lastIndexOf(serverInfo, ':');
+	if (lastColon < 0) return null;
+	let server = substr(serverInfo, 0, lastColon);
+	let port = substr(serverInfo, lastColon + 1);
+
+	if (substr(server, 0, 1) === '[') {
+		server = substr(server, 1, length(server) - 2);
+	}
+
+	let result = { name, server, server_port: port, obfs_password: password, obfs_type: '', sni: '' };
+
+	if (params) {
+		let pairs = split(params, '&');
+		for (let pair in pairs) {
+			let eqIdx = index(pair, '=');
+			if (eqIdx < 0) continue;
+			let key = urlDecode(substr(pair, 0, eqIdx));
+			let val = urlDecode(substr(pair, eqIdx + 1));
+			if (key === 'obfs') result.obfs_type = val;
+			else if (key === 'obfs-password') result.obfs_password = val;
+			else if (key === 'sni') result.sni = val;
+		}
+	}
+
+	return result;
+}
+
+function b64decode(str) {
+	if (!str) return '';
+	let f = popen(sprintf('echo "%s" | base64 -d 2>/dev/null', str), 'r');
+	let result = f.read('all');
+	f.close();
+	return result ? trim(result) : '';
+}
+
+function urlDecode(str) {
+	if (!str) return '';
+	let f = popen(sprintf('printf "%%s" "%s" | python3 -c "import sys,urllib.parse;print(urllib.parse.unquote(sys.stdin.read()),end=\'\')" 2>/dev/null', str), 'r');
+	let result = f.read('all');
+	f.close();
+	return result ? trim(result) : str;
+}
+
+function generateConfig() {
+	let f = popen('/usr/sbin/singbox-helper generate 2>/dev/null', 'r');
+	let config = f.read('all');
+	f.close();
+	return config;
+}
+
+function startService() {
+	let f = popen('/etc/init.d/singbox start 2>&1', 'r');
+	let out = f.read('all');
+	f.close();
+	return out;
+}
+
+function stopService() {
+	let f = popen('/etc/init.d/singbox stop 2>&1', 'r');
+	let out = f.read('all');
+	f.close();
+	return out;
+}
+
+function restartService() {
+	let f = popen('/etc/init.d/singbox restart 2>&1', 'r');
+	let out = f.read('all');
+	f.close();
+	return out;
+}
+
+function testNodeDelay(server, port) {
+	if (!server || !port) return -1;
+	let f = popen(sprintf('timeout 5 nc -z -w3 %s %s 2>&1 && echo OK || echo FAIL', server, port), 'r');
+	let result = f.read('all');
+	f.close();
+	return index(result, 'OK') >= 0 ? 0 : -1;
+}
+
+function getLog(lines) {
+	let n = lines || 50;
+	let f = popen(sprintf('tail -n %d /tmp/singbox.log 2>/dev/null', n), 'r');
+	let log = f.read('all');
+	f.close();
+	return log || '';
+}
+
+return {
+	'getGlobal': getGlobal,
+	'getSubscribes': getSubscribes,
+	'getNodes': getNodes,
+	'getStatus': getStatus,
+	'fetchSubscribe': fetchSubscribe,
+	'parseNodes': parseNodes,
+	'generateConfig': generateConfig,
+	'startService': startService,
+	'stopService': stopService,
+	'restartService': restartService,
+	'testNodeDelay': testNodeDelay,
+	'getLog': getLog,
+	'uciCommit': uciCommit,
+	'uciAdd': uciAdd,
+	'uciDelete': uciDelete,
+	'uciSet': uciSet,
+};

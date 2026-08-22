@@ -1,0 +1,23 @@
+#!/bin/sh
+
+uci -q batch <<-EOT
+	set singbox.global=singbox
+	set singbox.global.enabled='0'
+	set singbox.global.log_level='info'
+	set singbox.global.log_output='/tmp/singbox.log'
+	set singbox.global.mixed_port='2080'
+	set singbox.global.socks_port='1080'
+	set singbox.global.http_port='1081'
+	set singbox.global.tun_enabled='0'
+	set singbox.global.tun_address='172.19.0.1/30'
+	set singbox.global.tun_auto_route='1'
+	set singbox.global.tun_stack='system'
+	set singbox.global.clash_api_enabled='0'
+	set singbox.global.clash_api_port='9090'
+	set singbox.global.clash_api_secret=''
+	set singbox.global.external_controller='0.0.0.0:9090'
+EOT
+
+uci -q commit singbox
+
+exit 0

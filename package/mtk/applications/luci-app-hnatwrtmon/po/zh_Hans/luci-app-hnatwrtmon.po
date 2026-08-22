@@ -1,0 +1,374 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh_Hans\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "HNAT Traffic Monitor"
+msgstr "HNAT 流量监控"
+
+msgid "Clients"
+msgstr "客户端"
+
+msgid "MAC"
+msgstr "MAC"
+
+msgid "Download"
+msgstr "下载"
+
+msgid "Upload"
+msgstr "上传"
+
+msgid "Total Down"
+msgstr "累计下载"
+
+msgid "Total Up"
+msgstr "累计上传"
+
+msgid "Total"
+msgstr "总计"
+
+msgid "First Seen"
+msgstr "首次出现"
+
+msgid "Last Seen"
+msgstr "最后出现"
+
+msgid "Collecting data..."
+msgstr "正在收集数据..."
+
+msgid "Last updated at %s."
+msgstr "上次更新于 %s。"
+
+msgid "Updating again in %s second(s)."
+msgstr "将在 %s 秒后再次更新。"
+
+msgid "Protocol:"
+msgstr "协议:"
+
+msgid "Auto update every:"
+msgstr "自动更新间隔:"
+
+msgid "Disabled"
+msgstr "禁用"
+
+msgid "3 seconds"
+msgstr "3 秒"
+
+msgid "5 seconds"
+msgstr "5 秒"
+
+msgid "10 seconds"
+msgstr "10 秒"
+
+msgid "30 seconds"
+msgstr "30 秒"
+
+msgid "Reset Database"
+msgstr "重置数据库"
+
+msgid "Configure Options"
+msgstr "配置选项"
+
+msgid "This will delete the database file. Are you sure?"
+msgstr "这将删除数据库文件。确定吗？"
+
+msgid "Configuration"
+msgstr "配置"
+
+msgid "Loading configuration data..."
+msgstr "正在加载配置数据..."
+
+msgid "Saving configuration data..."
+msgstr "正在保存配置数据..."
+
+msgid "Unable to save %s: %s"
+msgstr "无法保存 %s: %s"
+
+msgid "Configure the default values for luci-app-hnatwrtmon."
+msgstr "配置 luci-app-hnatwrtmon 的默认值。"
+
+msgid "Default Protocol"
+msgstr "默认协议"
+
+msgid "Default Refresh Interval"
+msgstr "默认刷新间隔"
+
+msgid "Default Columns"
+msgstr "默认列"
+
+msgid "Show Zeros"
+msgstr "显示零值"
+
+msgid "Transfer Speed in Bits"
+msgstr "以比特显示速度"
+
+msgid "Multiple of Unit"
+msgstr "单位倍数"
+
+msgid "SI - 1000"
+msgstr "SI - 1000"
+
+msgid "IEC - 1024"
+msgstr "IEC - 1024"
+
+msgid "Use DSL Bandwidth"
+msgstr "使用 DSL 带宽"
+
+msgid "Upstream Bandwidth"
+msgstr "上行带宽"
+
+msgid "Downstream Bandwidth"
+msgstr "下行带宽"
+
+msgid "Hide MAC Addresses"
+msgstr "隐藏 MAC 地址"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Downstream:"
+msgstr "下行:"
+
+msgid "Upstream:"
+msgstr "上行:"
+
+msgid "ipv4"
+msgstr "IPv4"
+
+msgid "ipv6"
+msgstr "IPv6"
+
+msgid "TOTAL"
+msgstr "总计"
+
+msgid "Usage - Custom User File"
+msgstr "用法 - 自定义用户文件"
+
+msgid "Each line must have the following format:"
+msgstr "每行必须遵循以下格式："
+
+msgid "Unable to load the customized hostname file: %s"
+msgstr "无法加载自定义主机名文件：%s"
+
+msgid "Connection Details"
+msgstr "连接详情"
+
+msgid "Loading flow data..."
+msgstr "正在加载流量数据..."
+
+msgid "Protocol"
+msgstr "协议"
+
+msgid "Source"
+msgstr "来源"
+
+msgid "Destination"
+msgstr "目标"
+
+msgid "Bytes"
+msgstr "字节"
+
+msgid "Direction"
+msgstr "方向"
+
+msgid "No active flows found."
+msgstr "未找到活跃连接。"
+
+msgid "Failed to load flow data: %s"
+msgstr "加载流量数据失败：%s"
+
+msgid "Error"
+msgstr "错误"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Client: %s"
+msgstr "客户端：%s"
+
+msgid "Mbit/s"
+msgstr "Mbit/s"
+
+msgid "Keep Inactive Clients"
+msgstr "保留离线客户端"
+
+msgid "Forever"
+msgstr "永久"
+
+msgid "1 minute"
+msgstr "1 分钟"
+
+msgid "3 minutes"
+msgstr "3 分钟"
+
+msgid "5 minutes"
+msgstr "5 分钟"
+
+msgid "10 minutes"
+msgstr "10 分钟"
+
+msgid "15 minutes"
+msgstr "15 分钟"
+
+msgid "30 minutes"
+msgstr "30 分钟"
+
+msgid "Real-time"
+msgstr "实时"
+
+msgid "History"
+msgstr "历史"
+
+msgid "DNS Lookup"
+msgstr "DNS 查询"
+
+msgid "Bandwidth Chart"
+msgstr "带宽图表"
+
+msgid "Device Details"
+msgstr "设备详情"
+
+msgid "Download Rate"
+msgstr "下载速率"
+
+msgid "Upload Rate"
+msgstr "上传速率"
+
+msgid "Historical Traffic Statistics"
+msgstr "历史流量统计"
+
+msgid "Traffic Trend"
+msgstr "流量趋势"
+
+msgid "Daily"
+msgstr "每日"
+
+msgid "Weekly"
+msgstr "每周"
+
+msgid "Monthly"
+msgstr "每月"
+
+msgid "Daily Breakdown"
+msgstr "每日明细"
+
+msgid "Top Devices"
+msgstr "设备排行"
+
+msgid "Date"
+msgstr "日期"
+
+msgid "Client"
+msgstr "客户端"
+
+msgid "Loading..."
+msgstr "加载中..."
+
+msgid "No historical data available."
+msgstr "暂无历史数据。"
+
+msgid "No data"
+msgstr "无数据"
+
+msgid "DNS Query Monitor"
+msgstr "DNS 查询监控"
+
+msgid "DNS Query Log"
+msgstr "DNS 查询日志"
+
+msgid "Domain"
+msgstr "域名"
+
+msgid "Source / Result"
+msgstr "来源 / 结果"
+
+msgid "Resolved IP"
+msgstr "解析 IP"
+
+msgid "Type"
+msgstr "类型"
+
+msgid "Query"
+msgstr "查询"
+
+msgid "Reply"
+msgstr "响应"
+
+msgid "Queries"
+msgstr "查询数"
+
+msgid "Replies"
+msgstr "响应数"
+
+msgid "Top Domains"
+msgstr "热门域名"
+
+msgid "Top Sources"
+msgstr "请求来源"
+
+msgid "Enable DNS Logging"
+msgstr "启用 DNS 日志"
+
+msgid "Disable DNS Logging"
+msgstr "禁用 DNS 日志"
+
+msgid "Status: %s"
+msgstr "状态：%s"
+
+msgid "Active"
+msgstr "运行中"
+
+msgid "Inactive"
+msgstr "已停止"
+
+msgid "Checking status..."
+msgstr "检查状态中..."
+
+msgid "DNS logging is disabled. Enable it using the toggle above."
+msgstr "DNS 日志已禁用。请使用上方开关启用。"
+
+msgid "No DNS queries found. Wait for traffic to generate queries."
+msgstr "未找到 DNS 查询。等待产生网络流量。"
+
+msgid "DNS monitoring %s."
+msgstr "DNS 监控%s。"
+
+msgid "enabled"
+msgstr "已启用"
+
+msgid "disabled"
+msgstr "已禁用"
+
+msgid "Start Monitoring"
+msgstr "开始监控"
+
+msgid "Stop"
+msgstr "停止"
+
+msgid "Click Start Monitoring to begin."
+msgstr "点击「开始监控」以开始。"
+
+msgid "Cumulative Total by Day"
+msgstr "每日累计流量"
+
+msgid "Cumulative Total by Week"
+msgstr "每周累计流量"
+
+msgid "Cumulative Total by Month"
+msgstr "每月累计流量"
+
+msgid "Failed to load data."
+msgstr "数据加载失败。"
+
+msgid "Failed to toggle DNS monitoring: %s"
+msgstr "切换 DNS 监控失败：%s"
+
+msgid "Hourly"
+msgstr "每小时"
+
+msgid "Cumulative Total by Hour"
+msgstr "每小时累计流量"

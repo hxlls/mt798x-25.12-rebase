@@ -1,0 +1,31 @@
+{
+	"luci-app-hnatwrtmon": {
+		"description": "Grant UCI access for luci-app-hnatwrtmon",
+		"read": {
+			"ubus": {
+				"luci.hnatwrtmon": [ "get_db_path", "get_db_raw", "change_db_path", "get_flows", "list_historical_dates", "get_historical_data", "get_aggregated", "get_top_clients", "get_dns_queries", "get_dns_status" ],
+				"luci-rpc": [ "getDHCPLeases" ],
+				"file": [ "read", "stat", "exec" ]
+			},
+			"file": {
+				"/etc/luci-hnatwrtmon.conf": [ "read" ],
+				"/etc/wrtbwmon.user": [ "read" ],
+				"/usr/sbin/wrtbwmon": [ "exec" ],
+				"/usr/sbin/hnat-dns-mon": [ "exec" ],
+				"/var/lib/hnatbwmon/": [ "read" ]
+			},
+			"uci": [ "wrtbwmon", "dhcp" ]
+		},
+		"write": {
+			"ubus": {
+				"luci.hnatwrtmon": [ "remove_db", "change_db_path", "set_dns_monitoring" ],
+				"file": [ "write", "exec" ]
+			},
+			"file": {
+				"/etc/luci-hnatwrtmon.conf": [ "write" ],
+				"/etc/wrtbwmon.user": [ "write" ]
+			},
+			"uci": [ "wrtbwmon", "dhcp" ]
+		}
+	}
+}

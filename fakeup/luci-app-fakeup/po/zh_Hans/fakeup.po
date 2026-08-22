@@ -1,0 +1,35 @@
+msgid ""
+msgstr "Project-Id-Version: luci-app-fakeup\n"
+
+msgid "Fake Kernel Upgrade"
+msgstr "模拟内核升级"
+
+msgid "custom file"
+msgstr "自定义文件"
+
+msgid "running kernel"
+msgstr "运行内核"
+
+msgid "Click the button to bump the smallest kernel version number and reboot the device."
+msgstr "点击按钮将内核版本号末尾数字加一并重启设备。"
+
+msgid "Current kernel version"
+msgstr "当前内核版本"
+
+msgid "Upgrade & Reboot"
+msgstr "升级并重启"
+
+msgid "Upgrade failed: %s"
+msgstr "升级失败：%s"
+
+msgid "Kernel version bumped from %s to %s. Rebooting…"
+msgstr "内核版本已从 %s 升级到 %s。正在重启…"
+
+msgid "The reboot command failed with code %d"
+msgstr "重启命令执行失败，错误码 %d"
+
+msgid "Rebooting…"
+msgstr "正在重启…"
+
+msgid "Device unreachable! Still waiting for device..."
+msgstr "设备无法访问！仍在等待设备…"

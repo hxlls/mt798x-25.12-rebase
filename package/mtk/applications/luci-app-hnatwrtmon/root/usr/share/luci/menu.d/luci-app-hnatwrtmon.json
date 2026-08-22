@@ -1,0 +1,35 @@
+{
+	"admin/network/hnatwrtmon": {
+		"title": "HNAT Traffic Monitor",
+		"order": 60,
+		"action": {
+			"type": "view",
+			"path": "hnatwrtmon/details"
+		},
+		"depends": {
+			"acl": [ "luci-app-hnatwrtmon" ]
+		}
+	},
+	"admin/network/hnatwrtmon/details": {
+		"title": "Real-time",
+		"order": 1,
+		"action": {
+			"type": "view",
+			"path": "hnatwrtmon/details"
+		},
+		"depends": {
+			"acl": [ "luci-app-hnatwrtmon" ]
+		}
+	},
+	"admin/network/hnatwrtmon/history": {
+		"title": "History",
+		"order": 2,
+		"action": {
+			"type": "view",
+			"path": "hnatwrtmon/history"
+		},
+		"depends": {
+			"acl": [ "luci-app-hnatwrtmon" ]
+		}
+	}
+}

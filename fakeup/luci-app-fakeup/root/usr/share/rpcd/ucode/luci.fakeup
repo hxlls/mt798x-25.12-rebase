@@ -1,0 +1,72 @@
+#!/usr/bin/env ucode
+
+'use strict';
+
+import * as fs from 'fs';
+
+const VERSION_FILE = '/etc/fakeup/kernel-version';
+
+function get_version_file() {
+	let v = fs.readfile(VERSION_FILE);
+	return v ? trim(v) : null;
+}
+
+function get_uname_version() {
+	let out = fs.popen('uname -r 2>/dev/null');
+	if (out)
+		out = trim(out.read('all'));
+	return out || null;
+}
+
+function current_version() {
+	return get_version_file() || get_uname_version() || null;
+}
+
+function bump_version(version) {
+	let parts = split('' + version, '.');
+	if (length(parts) < 3)
+		return null;
+
+	let m = match(parts[2], /^(\d+)(.*)$/);
+	if (!m)
+		return null;
+
+	let patch = int(m[1]);
+	let suffix = m[2] ?? '';
+
+	return parts[0] + '.' + parts[1] + '.' + (patch + 1) + suffix;
+}
+
+const methods = {
+	get_status: {
+		call: function() {
+			let version = current_version();
+			return {
+				version: version ?? '',
+				source: get_version_file() ? 'file' : 'uname'
+			};
+		}
+	},
+
+	do_upgrade: {
+		call: function() {
+			let cur = current_version();
+			if (!cur)
+				return { error: 'NO_VERSION' };
+
+			let nxt = bump_version(cur);
+			if (nxt == null)
+				return { error: 'UNPARSEABLE_VERSION', version: cur };
+
+			let w = fs.writefile(VERSION_FILE, nxt + '\n');
+			if (!w || w == 0)
+				return { error: 'WRITE_FAILED' };
+
+			system('sync');
+
+			return { ok: true, old_version: cur, new_version: nxt };
+		}
+	}
+};
+
+return { 'luci.fakeup': methods };

@@ -1,0 +1,58 @@
+#!/bin/sh /etc/rc.common
+# Sing-Box service init script
+
+START=60
+STOP=40
+
+USE_PROCD=1
+PROG=/usr/bin/sing-box
+CONF=/tmp/singbox/config.json
+LOG_FILE=/tmp/singbox.log
+
+start_service() {
+	local enabled
+	config_get enabled global enabled '0'
+
+	[ "$enabled" = "0" ] && return
+
+	[ -d /tmp/singbox ] || mkdir -p /tmp/singbox
+
+	# Generate config
+	/usr/sbin/singbox-helper generate > "$CONF" 2>/dev/null
+	if [ $? -ne 0 ]; then
+		logger -t singbox "Failed to generate config"
+		return 1
+	fi
+
+	# Validate config
+	if ! $prog check -c "$CONF" 2>/dev/null; then
+		logger -t singbox "Invalid config"
+		return 1
+	fi
+
+	procd_open_instance singbox
+	procd_set_param command "$PROG" run -c "$CONF"
+	procd_set_param respawn 3600 5 5
+	procd_set_param file "$CONF"
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+
+	local log_level
+	config_get log_level global log_level 'info'
+	procd_set_param limits nofile="65535"
+
+	procd_close_instance
+}
+
+stop_service() {
+	[ -f "$CONF" ] && rm -f "$CONF"
+}
+
+reload_service() {
+	stop
+	start
+}
+
+service_triggers() {
+	procd_add_reload_trigger "singbox"
+}

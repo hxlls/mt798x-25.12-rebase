@@ -1,0 +1,35 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+msgid "Fake Kernel Upgrade"
+msgstr ""
+
+msgid "custom file"
+msgstr ""
+
+msgid "running kernel"
+msgstr ""
+
+msgid "Click the button to bump the smallest kernel version number and reboot the device."
+msgstr ""
+
+msgid "Current kernel version"
+msgstr ""
+
+msgid "Upgrade & Reboot"
+msgstr ""
+
+msgid "Upgrade failed: %s"
+msgstr ""
+
+msgid "Kernel version bumped from %s to %s. Rebooting…"
+msgstr ""
+
+msgid "The reboot command failed with code %d"
+msgstr ""
+
+msgid "Rebooting…"
+msgstr ""
+
+msgid "Device unreachable! Still waiting for device..."
+msgstr ""

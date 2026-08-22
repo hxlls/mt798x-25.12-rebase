@@ -1,0 +1,13 @@
+{
+	"admin/system/fakeup": {
+		"title": "Fake Kernel Upgrade",
+		"order": 90,
+		"action": {
+			"type": "view",
+			"path": "fakeup/upgrade"
+		},
+		"depends": {
+			"acl": [ "luci-app-fakeup" ]
+		}
+	}
+}

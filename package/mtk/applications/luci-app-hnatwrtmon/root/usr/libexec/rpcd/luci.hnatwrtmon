@@ -1,0 +1,477 @@
+#!/bin/sh
+
+. "$IPKG_INSTROOT/usr/share/libubox/jshn.sh"
+
+DB_DIR="/var/lib/hnatbwmon"
+
+renamefile() {
+	local base=$(basename -- "$1")
+	local ext=$([ -z "${base/*.*/}"  ] && echo ".${base##*.}" || echo '')
+	local base="${base%.*}"
+	echo "$(dirname $1)/${base}$2$ext" && return
+}
+
+_get_db_path() {
+	local db db_4 db_6
+	db="$(uci -q get wrtbwmon.general.path)"
+	db_4=$(renamefile "${db:-$DB_DIR/usage.db}" "")
+	db_6=$(renamefile "${db:-$DB_DIR/usage.db}" ".6")
+	json_init
+	json_add_string file_4 "$db_4"
+	json_add_string file_6 "$db_6"
+	json_dump
+	json_cleanup
+}
+
+_get_db_raw() {
+	json_init
+	json_add_string file "$1"
+	json_add_string data "$(cat "$1" 2>/dev/null)"
+	json_dump
+	json_cleanup
+}
+
+_remove_db() {
+	local result
+	rm -f "$1" && result=1 || result=0
+	json_init
+	json_add_boolean result "$result"
+	json_dump
+	json_cleanup
+}
+
+_change_db_path() {
+	local result=0
+	json_init
+	json_load "$(_get_db_path)"
+	json_get_var db_4 'file_4'
+	json_get_var db_6 'file_6'
+	json_cleanup
+	if [ "$1" = "before" ]; then
+		mv "$db_4" "$DB_DIR/usage.db.tmp" 2>/dev/null && \
+		mv "$db_6" "$DB_DIR/usage.6.db.tmp" 2>/dev/null && result=1
+	elif [ "$1" = "after" ]; then
+		mv -f "$DB_DIR/usage.db.tmp" "$db_4" 2>/dev/null && \
+		mv -f "$DB_DIR/usage.6.db.tmp" "$db_6" 2>/dev/null && result=1
+	fi
+	json_init
+	json_add_boolean result "$result"
+	json_dump
+	json_cleanup
+}
+
+_get_flows() {
+	local mac="$1" flows i
+	flows="$(/usr/sbin/wrtbwmon -l "$mac" 2>/dev/null)"
+	json_init
+	json_add_string mac "$mac"
+	json_add_array flows
+	if [ -n "$flows" ]; then
+		echo "$flows" > /tmp/.hnat_flows.$$
+		while IFS=, read -r proto sip sport dip dport bytes direction; do
+			[ -z "$proto" ] && continue
+			json_add_object
+			json_add_int proto "$proto"
+			json_add_string sip "$sip"
+			json_add_int sport "$sport"
+			json_add_string dip "$dip"
+			json_add_int dport "$dport"
+			json_add_int bytes "$bytes"
+			json_add_string direction "$direction"
+			json_close_object
+		done < /tmp/.hnat_flows.$$
+		rm -f /tmp/.hnat_flows.$$
+	fi
+	json_close_array
+	json_dump
+	json_cleanup
+}
+
+_list_historical_dates() {
+	local protocol="$1"
+	json_init
+	json_add_array dates
+	for f in $(find "$DB_DIR" -name "usage-*.db" 2>/dev/null | sort -r); do
+		json_add_object
+		json_add_string date "$(basename $f .db | sed 's/usage-//')"
+		json_add_int size "$(stat -c%s "$f" 2>/dev/null || echo 0)"
+		json_close_object
+	done
+	json_close_array
+	json_dump
+	json_cleanup
+}
+
+_get_historical_data() {
+	local date="$1"
+	local f="$DB_DIR/${date:0:4}/${date:5:2}/usage-${date}.db"
+	_get_db_raw "$f"
+}
+
+_snapshot_hourly() {
+	local db_s year month day hour date_dir archive
+	json_load "$(_get_db_path)"
+	json_get_var db_s 'file_4'
+	json_cleanup
+
+	year=$(date +%Y)
+	month=$(date +%m)
+	day=$(date +%d)
+	hour=$(date +%H)
+	date_dir="$DB_DIR/$year/$month"
+	archive="$date_dir/usage-${year}-${month}-${day}-${hour}.db"
+
+	[ -f "$archive" ] && return
+	mkdir -p "$date_dir"
+	[ -f "$db_s" ] && cp "$db_s" "$archive"
+}
+
+_get_aggregated() {
+	local granularity="$1"
+	local days i year month day hour date_str f total_dl total_ul client_count mac
+
+	case "$granularity" in
+		hourly)
+			_snapshot_hourly
+			json_init
+			json_add_array data
+			for hour in $(seq 0 23); do
+				h=$(printf "%02d" "$hour")
+				date_str="$(date +%Y-%m-%d) ${h}:00"
+				f="$DB_DIR/$(date +%Y)/$(date +%m)/usage-$(date +%Y-%m-%d)-${h}.db"
+				total_dl=0 total_ul=0 client_count=0
+				if [ -f "$f" ]; then
+					while IFS=, read -r mac ip hostname dl ul td tu total first last; do
+						[ "$mac" = "mac" ] && continue
+						[ -z "$total" ] && continue
+						total_dl=$((total_dl + td))
+						total_ul=$((total_ul + tu))
+						client_count=$((client_count + 1))
+					done < "$f"
+				fi
+				json_add_object
+				json_add_string date "$date_str"
+				json_add_int download "$total_dl"
+				json_add_int upload "$total_ul"
+				json_add_int clients "$client_count"
+				json_close_object
+			done
+			json_close_array
+			json_dump
+			json_cleanup
+			return
+			;;
+		daily)  days=1 ;;
+		weekly)  days=7 ;;
+		monthly) days=30 ;;
+		*)       days=7 ;;
+	esac
+
+	json_init
+	json_add_array data
+
+	i=0
+	while [ $i -lt $days ]; do
+		year=$(date -d "-$i days" +%Y 2>/dev/null)
+		month=$(date -d "-$i days" +%m 2>/dev/null)
+		day=$(date -d "-$i days" +%d 2>/dev/null)
+		[ -z "$year" ] && {
+			local ts=$(date -d "@$(( $(date +%s) - i * 86400 ))" +%Y 2>/dev/null)
+			[ -n "$ts" ] && year=$ts || break
+			month=$(date -d "@$(( $(date +%s) - i * 86400 ))" +%m 2>/dev/null)
+			day=$(date -d "@$(( $(date +%s) - i * 86400 ))" +%d 2>/dev/null)
+		}
+		local date_str="${year}-${month}-${day}"
+		local f="$DB_DIR/$year/$month/usage-${date_str}.db"
+		local total_dl=0 total_ul=0 client_count=0
+
+		if [ -f "$f" ]; then
+			while IFS=, read -r mac ip hostname dl ul td tu total first last; do
+				[ "$mac" = "mac" ] && continue
+				[ -z "$total" ] && continue
+				total_dl=$((total_dl + td))
+				total_ul=$((total_ul + tu))
+				client_count=$((client_count + 1))
+			done < "$f"
+		fi
+
+		json_add_object
+		json_add_string date "$date_str"
+		json_add_int download "$total_dl"
+		json_add_int upload "$total_ul"
+		json_add_int clients "$client_count"
+		json_close_object
+
+		i=$((i + 1))
+	done
+
+	json_close_array
+	json_dump
+	json_cleanup
+}
+
+_get_top_clients() {
+	local date="$1" limit="${2:-10}"
+	local f="$DB_DIR/${date:0:4}/${date:5:2}/usage-${date}.db"
+	local tmpfile="/tmp/.hnat_top.$$"
+
+	json_init
+	json_add_array clients
+
+	if [ -f "$f" ]; then
+		awk -F, 'NR>1 {
+			key = $1
+			hostname = $3
+			td = $6
+			tu = $7
+			total = $8
+			print total "\t" key "\t" hostname "\t" td "\t" tu
+		}' "$f" | sort -t$'\t' -k1 -rn | head -n "$limit" > "$tmpfile"
+
+		while IFS=$'\t' read -r total mac hostname dl ul; do
+			json_add_object
+			json_add_string mac "$mac"
+			json_add_string hostname "$hostname"
+			json_add_int download "$dl"
+			json_add_int upload "$ul"
+			json_add_int total "$total"
+			json_close_object
+		done < "$tmpfile"
+	fi
+
+	json_close_array
+	json_dump
+	json_cleanup
+	rm -f "$tmpfile"
+}
+
+_get_dns_queries() {
+	local limit="${1:-100}"
+	local tmp="/tmp/.hnat_dns.$$"
+
+	> "$tmp"
+
+	# capture DNS with tcpdump (bypasses dnsmasq ujail)
+	tcpdump -i br-lan -nn udp port 53 -c 200 -w /tmp/.hnat_dns.pcap 2>/dev/null &
+	local pid=$!
+	sleep 2
+	kill $pid 2>/dev/null
+	wait $pid 2>/dev/null
+
+	tcpdump -nn -r /tmp/.hnat_dns.pcap 2>/dev/null | while IFS= read -r line; do
+		echo "$line" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[a-z0-9.-]+' 2>/dev/null || echo "$line"
+	done | head -n "$limit" > "$tmp"
+	rm -f /tmp/.hnat_dns.pcap
+
+	json_init
+	json_add_array queries
+
+	local count=0
+	if [ -s "$tmp" ]; then
+		while IFS= read -r line; do
+			[ "$count" -ge "$limit" ] && break
+
+			if echo "$line" | grep -q "query\["; then
+				local domain=$(echo "$line" | sed -n 's/.*query\[A*\] \([^ ]*\).*/\1/p')
+				local source=$(echo "$line" | sed -n 's/.*from \([0-9a-fA-F.:]*\).*/\1/p')
+				[ -z "$domain" ] && continue
+
+				json_add_object
+				json_add_string type "query"
+				json_add_string domain "$domain"
+				json_add_string source "${source:-unknown}"
+				json_add_string result "-"
+				json_close_object
+			elif echo "$line" | grep -q "reply "; then
+				local domain=$(echo "$line" | sed -n 's/.*reply \([^ ]*\).*/\1/p')
+				local result=$(echo "$line" | sed -n 's/.*is \([^ ]*\).*/\1/p')
+				[ -z "$domain" ] && continue
+
+				json_add_object
+				json_add_string type "reply"
+				json_add_string domain "$domain"
+				json_add_string source "-"
+				json_add_string result "${result:-unknown}"
+				json_close_object
+			fi
+
+			count=$((count + 1))
+		done < "$tmp"
+	fi
+	json_close_array
+	json_dump
+	json_cleanup
+	rm -f "$tmp"
+}
+
+_get_dns_status() {
+	local status="disabled"
+	uci -q get dhcp.@dnsmasq[0].logqueries >/dev/null 2>&1 && status="enabled"
+	json_init
+	json_add_string status "$status"
+	json_dump
+	json_cleanup
+}
+
+_set_dns_monitoring() {
+	local action="$1" result=0
+	case "$action" in
+		enable)
+			/usr/sbin/hnat-dns-mon enable >/dev/null 2>&1 && result=1
+		;;
+		disable)
+			/usr/sbin/hnat-dns-mon disable >/dev/null 2>&1 && result=1
+		;;
+	esac
+	json_init
+	json_add_boolean result "$result"
+	json_dump
+	json_cleanup
+}
+
+case "$1" in
+	list)
+		json_init
+		json_add_object remove_db
+		json_add_string protocol "protocol"
+		json_close_object
+		json_add_object get_db_raw
+		json_add_string protocol "protocol"
+		json_close_object
+		json_add_object get_db_path
+		json_add_string protocol "protocol"
+		json_close_object
+		json_add_object change_db_path
+		json_add_string state "state"
+		json_close_object
+		json_add_object get_flows
+		json_add_string mac "mac"
+		json_close_object
+		json_add_object list_historical_dates
+		json_add_string protocol "protocol"
+		json_close_object
+		json_add_object get_historical_data
+		json_add_string date "date"
+		json_close_object
+		json_add_object get_aggregated
+		json_add_string granularity "granularity"
+		json_close_object
+		json_add_object get_top_clients
+		json_add_string date "date"
+		json_add_string limit "limit"
+		json_close_object
+		json_add_object get_dns_queries
+		json_add_string limit "limit"
+		json_close_object
+		json_add_object get_dns_status
+		json_close_object
+		json_add_object set_dns_monitoring
+		json_add_string action "action"
+		json_close_object
+		json_dump
+		json_cleanup
+	;;
+	call)
+		case "$2" in
+			remove_db)
+				read -r input
+				json_init
+				json_load "$input"
+				json_get_var protocol 'protocol'
+				json_cleanup
+				json_load "$(_get_db_path)"
+				json_get_var db_s $([ "$protocol" = "ipv4" ] && echo file_4 || echo file_6)
+				json_cleanup
+				_remove_db "$db_s"
+			;;
+			get_db_raw)
+				read -r input
+				json_init
+				json_load "$input"
+				json_get_var protocol 'protocol'
+				json_cleanup
+				json_load "$(_get_db_path)"
+				json_get_var db_s $([ "$protocol" = "ipv4" ] && echo file_4 || echo file_6)
+				json_cleanup
+				_get_db_raw "$db_s"
+			;;
+			get_db_path)
+				read -r input 2>/dev/null || input="{}"
+				json_init
+				json_load "$input"
+				json_get_var protocol 'protocol'
+				json_cleanup
+				_get_db_path
+			;;
+			change_db_path)
+				read -r input
+				json_init
+				json_load "$input"
+				json_get_var state 'state'
+				json_cleanup
+				_change_db_path "$state"
+			;;
+			get_flows)
+				read -r input
+				json_init
+				json_load "$input"
+				json_get_var mac 'mac'
+				json_cleanup
+				_get_flows "$mac"
+			;;
+			list_historical_dates)
+				read -r input 2>/dev/null || input="{}"
+				json_init
+				json_load "$input"
+				json_get_var protocol 'protocol'
+				json_cleanup
+				_list_historical_dates "${protocol:-ipv4}"
+			;;
+			get_historical_data)
+				read -r input
+				json_init
+				json_load "$input"
+				json_get_var date 'date'
+				json_cleanup
+				_get_historical_data "$date"
+			;;
+			get_aggregated)
+				read -r input
+				json_init
+				json_load "$input"
+				json_get_var granularity 'granularity'
+				json_cleanup
+				_get_aggregated "${granularity:-weekly}"
+			;;
+			get_top_clients)
+				read -r input
+				json_init
+				json_load "$input"
+				json_get_var date 'date'
+				json_get_var limit 'limit'
+				json_cleanup
+				_get_top_clients "${date:-$(date +%Y-%m-%d)}" "${limit:-10}"
+			;;
+			get_dns_queries)
+				read -r input 2>/dev/null || input="{}"
+				json_init
+				json_load "$input"
+				json_get_var limit 'limit'
+				json_cleanup
+				_get_dns_queries "${limit:-100}"
+			;;
+			get_dns_status)
+				read -r input 2>/dev/null || input="{}"
+				_get_dns_status
+			;;
+			set_dns_monitoring)
+				read -r input
+				json_init
+				json_load "$input"
+				json_get_var action 'action'
+				json_cleanup
+				_set_dns_monitoring "$action"
+			;;
+		esac
+	;;
+esac

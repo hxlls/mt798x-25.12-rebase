@@ -1,0 +1,22 @@
+{
+	"luci-app-fakeup": {
+		"description": "Grant access for luci-app-fakeup",
+		"read": {
+			"ubus": {
+				"luci.fakeup": [ "get_status" ]
+			},
+			"file": {
+				"/etc/fakeup/kernel-version": [ "read" ]
+			}
+		},
+		"write": {
+			"ubus": {
+				"luci.fakeup": [ "do_upgrade" ],
+				"system": [ "reboot" ]
+			},
+			"file": {
+				"/etc/fakeup/kernel-version": [ "write" ]
+			}
+		}
+	}
+}
