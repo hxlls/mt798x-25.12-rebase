@@ -19,3 +19,5 @@ define Build/Patch
 		fi; \
 	done
 endef
+
+# call BuildPackage - OpenWrt buildroot signature
