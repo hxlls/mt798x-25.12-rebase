@@ -1,20 +1,12 @@
-From e23c2f4260406713fbd95c29d8d2fe8390daf043 Mon Sep 17 00:00:00 2001
-From: ling <ling@users.noreply.github.com>
-Date: Sat, 22 Aug 2026 11:21:53 +0000
-Subject: [PATCH] hide flow offloading type from firewall settings
-
----
- .../resources/view/firewall/zones.js          | 28 -------------------
- 1 file changed, 28 deletions(-)
-
-diff --git a/applications/luci-app-firewall/htdocs/luci-static/resources/view/firewall/zones.js b/applications/luci-app-firewall/htdocs/luci-static/resources/view/firewall/zones.js
-index ddd5d5c2f4..8081411688 100644
 --- a/applications/luci-app-firewall/htdocs/luci-static/resources/view/firewall/zones.js
 +++ b/applications/luci-app-firewall/htdocs/luci-static/resources/view/firewall/zones.js
-@@ -73,34 +73,6 @@ return view.extend({
+@@ -76,30 +76,6 @@
+ 		for (let popt of p) {
+ 			popt.value('REJECT', _('reject'));
+ 			popt.value('DROP', _('drop'));
  			popt.value('ACCEPT', _('accept'));
  		}
- 
+-
 -		/* Netfilter flow offload support */
 -
 -		if (L.hasSystemFeature('offloading')) {
@@ -41,11 +33,3 @@ index ddd5d5c2f4..8081411688 100644
 -				uci.set('firewall', section_id, 'flow_offloading_hw', value === '2' ? '1' : null);
 -			};
 -		}
--
--
- 		s = m.section(form.GridSection, 'zone', _('Zones'));
- 		s.addremove = true;
- 		s.anonymous = true;
--- 
-2.53.0
-

@@ -9,7 +9,7 @@ include $(INCLUDE_DIR)/package.mk
 define Package/luci-app-firewall-patches
   SECTION:=luci
   CATEGORY:=LuCI
-  TITLE:=Patches for luci-app-firewall
+  TITLE:=Hide flow offloading type from firewall
   DEPENDS:=+luci-app-firewall
   PKGARCH:=all
 endef
@@ -22,17 +22,18 @@ define Build/Compile
 	true
 endef
 
-define Build/Install
-	true
-endef
-
-define Build/InstallDev
-	true
-endef
-
-# Apply patches to feeds/luci during build
 define Build/Patch
-	$(TOPDIR)/package/diy/luci-app-firewall-patches/apply.sh "$(TOPDIR)"
+	@echo "Applying firewall patches..."
+	@for patch in $(TOPDIR)/package/diy/luci-app-firewall-patches/patches/*.patch; do \
+		[ -f "$$$$patch" ] || continue; \
+		cd $(TOPDIR)/feeds/luci && \
+		if git apply --check "$$$$patch" 2>/dev/null; then \
+			git apply "$$$$patch" && \
+			echo "Applied $$(basename $$$$patch)"; \
+		else \
+			echo "$$(basename $$$$patch) already applied or failed"; \
+		fi; \
+	done
 endef
 
 define Package/luci-app-firewall-patches/install
