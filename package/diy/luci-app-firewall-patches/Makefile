@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 LUCI_TITLE:=Hide flow offloading type from firewall
 LUCI_DEPENDS:=+luci-app-firewall
-LUCI_MENU:=Applications
+LUCI_SUBMENU_FORCED:=3. Applications
 
 include $(TOPDIR)/feeds/luci/luci.mk
 
