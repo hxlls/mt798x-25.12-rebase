@@ -40,14 +40,14 @@ index ffa6125fc9..23b8575ac3 100644
 +					      iph->ihl * 4 - __tcp_hdrlen(tcph);
 +				if (payload_len == 0) {
 +					qid = short_pkt_qid;
-+					pr_info("hnat shortpkt: TCP ACK -> qid %d\n", qid);
++					pr_info_once("hnat shortpkt: TCP ACK -> qid %d\n", qid);
 +				}
 +			} else if (iph->protocol == IPPROTO_UDP) {
 +				payload_len = be16_to_cpu(iph->tot_len) -
 +					      iph->ihl * 4 - sizeof(struct udphdr);
 +				if (payload_len <= short_pkt_len) {
 +					qid = short_pkt_qid;
-+					pr_info("hnat shortpkt: UDP len=%u -> qid %d\n",
++					pr_info_once("hnat shortpkt: UDP len=%u -> qid %d\n",
 +						payload_len, qid);
 +				}
 +			}
@@ -58,13 +58,13 @@ index ffa6125fc9..23b8575ac3 100644
 +				payload_len = be16_to_cpu(ip6h->payload_len) - __tcp_hdrlen(tcph);
 +				if (payload_len == 0) {
 +					qid = short_pkt_qid;
-+					pr_info("hnat shortpkt: IPv6 TCP ACK -> qid %d\n", qid);
++					pr_info_once("hnat shortpkt: IPv6 TCP ACK -> qid %d\n", qid);
 +				}
 +			} else if (ip6h->nexthdr == NEXTHDR_UDP) {
 +				payload_len = be16_to_cpu(ip6h->payload_len) - sizeof(struct udphdr);
 +				if (payload_len <= short_pkt_len) {
 +					qid = short_pkt_qid;
-+					pr_info("hnat shortpkt: IPv6 UDP len=%u -> qid %d\n",
++					pr_info_once("hnat shortpkt: IPv6 UDP len=%u -> qid %d\n",
 +						payload_len, qid);
 +				}
 +			}
