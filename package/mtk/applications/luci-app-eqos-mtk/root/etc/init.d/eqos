@@ -214,11 +214,10 @@ apply_short_pkt_service() {
 apply_priority_rules_service() {
 	local cfg enabled
 
-	config_load eqos
 	for cfg in $(uci -q show eqos |
 		     sed -n 's/^eqos\.\([^=]*\)=priority_rule$/\1/p'); do
-		config_get_bool enabled "$cfg" enabled 0
-		if [ "$enabled" -eq 1 ]; then
+		enabled="$(uci -q get eqos.$cfg.enabled)"
+		if [ "$enabled" = "1" ]; then
 			eqos priority
 			return 0
 		fi

@@ -76,6 +76,9 @@ msgstr "模式"
 msgid "Network speed control service for MediaTek HNAT."
 msgstr "面向 MediaTek HNAT 的网速控制服务。"
 
+msgid "Packet priority settings for MediaTek HNAT."
+msgstr "面向 MediaTek HNAT 的包优先级设置。"
+
 msgid "No data"
 msgstr "无数据"
 
