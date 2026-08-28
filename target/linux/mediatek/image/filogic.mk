@@ -3997,6 +3997,7 @@ define Device/zyxel_ex5700-telenor-mtk
   DEVICE_DTS := mt7986a-zyxel-ex5700-telenor-mtk
   DEVICE_DTS_DIR := ../dts
   DEVICE_PACKAGES := kmod-ubootenv-nvram kmod-usb3 automount
+  BOARD_NAME := zyxel_ex5700-telenor
   SUPPORTED_DEVICES := zyxel,ex5700-telenor
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
