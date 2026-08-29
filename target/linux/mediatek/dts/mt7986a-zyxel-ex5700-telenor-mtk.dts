@@ -271,6 +271,8 @@
 
 &wifi {
 	status = "okay";
+	nvmem-cell-names = "eeprom";
+	nvmem-cells = <&eeprom_factory_0>;
 	pinctrl-names = "default", "dbdc";
 	pinctrl-0 = <&wf_2g_5g_pins>;
 	pinctrl-1 = <&wf_dbdc_pins>;
@@ -378,6 +380,28 @@
 				label = "Factory";
 				reg = <0x180000 0x200000>;
 				read-only;
+
+				nvmem-layout {
+					compatible = "fixed-layout";
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					eeprom_factory_0: eeprom@0 {
+						reg = <0x0 0x1000>;
+					};
+
+					macaddr_factory_4: macaddr@4 {
+						reg = <0x4 0x6>;
+					};
+
+					macaddr_factory_1fef20: macaddr@1fef20 {
+						reg = <0x1fef20 0x6>;
+					};
+
+					macaddr_factory_1fef26: macaddr@1fef26 {
+						reg = <0x1fef26 0x6>;
+					};
+				};
 			};
 			partition@380000 {
 				label = "FIP";
