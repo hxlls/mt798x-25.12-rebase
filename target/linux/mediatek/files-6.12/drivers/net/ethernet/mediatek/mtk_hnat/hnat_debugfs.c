@@ -44,9 +44,6 @@ int tnl_toggle;
 int xlat_toggle;
 int l2br_toggle;
 int l4s_toggle;
-int short_pkt_toggle;
-int short_pkt_qid = 14;
-int short_pkt_len = 64;
 struct hnat_desc headroom[DEF_ETRY_NUM];
 unsigned int dbg_cpu_reason_cnt[MAX_CRSN_NUM];
 
@@ -1930,15 +1927,14 @@ static void dbg_dump_entry(struct seq_file *m, struct foe_entry *entry,
 
 	if (IS_IPV4_HNAPT(entry)) {
 		seq_printf(m,
-			   "NAPT(%d): %pI4:%d->%pI4:%d => %pI4:%d->%pI4:%d qid=%d\n",
+			   "NAPT(%d): %pI4:%d->%pI4:%d => %pI4:%d->%pI4:%d\n",
 			   index, &saddr, entry->ipv4_hnapt.sport, &daddr,
 			   entry->ipv4_hnapt.dport, &nsaddr,
 			   entry->ipv4_hnapt.new_sport, &ndaddr,
-			   entry->ipv4_hnapt.new_dport, entry->ipv4_hnapt.iblk2.qid);
+			   entry->ipv4_hnapt.new_dport);
 	} else if (IS_IPV4_HNAT(entry)) {
-		seq_printf(m, "NAT(%d): %pI4->%pI4 => %pI4->%pI4 qid=%d\n",
-			   index, &saddr, &daddr, &nsaddr, &ndaddr,
-			   entry->ipv4_hnapt.iblk2.qid);
+		seq_printf(m, "NAT(%d): %pI4->%pI4 => %pI4->%pI4\n",
+			   index, &saddr, &daddr, &nsaddr, &ndaddr);
 	}
 
 	if (IS_IPV4_DSLITE(entry)) {
@@ -2560,45 +2556,6 @@ static const struct file_operations hnat_ppd_if_fops = {
 	.write = hnat_ppd_if_write,
 	.release = single_release,
 };
-
-#define DEFINE_HNAT_INT_DEBUGFS(name, var)					\
-static int hnat_##name##_read(struct seq_file *m, void *private)		\
-{										\
-	seq_printf(m, "%d\n", var);						\
-	return 0;								\
-}										\
-static int hnat_##name##_open(struct inode *inode, struct file *file)		\
-{										\
-	return single_open(file, hnat_##name##_read, file->private_data);	\
-}										\
-static ssize_t hnat_##name##_write(struct file *file, const char __user *buffer, \
-				   size_t count, loff_t *data)			\
-{										\
-	char buf[16] = {0};							\
-	long val;								\
-										\
-	if (count >= sizeof(buf) || copy_from_user(buf, buffer, count))		\
-		return -EFAULT;							\
-										\
-	if (kstrtol(buf, 0, &val))						\
-		return -EINVAL;							\
-										\
-	var = val;								\
-	pr_info("hnat " #name " = %ld\n", val);					\
-	return count;								\
-}										\
-static const struct file_operations hnat_##name##_fops = {			\
-	.open = hnat_##name##_open,						\
-	.read = seq_read,							\
-	.llseek = seq_lseek,							\
-	.write = hnat_##name##_write,						\
-	.release = single_release,						\
-};
-
-DEFINE_HNAT_INT_DEBUGFS(short_pkt_toggle, short_pkt_toggle)
-DEFINE_HNAT_INT_DEBUGFS(short_pkt_qid, short_pkt_qid)
-DEFINE_HNAT_INT_DEBUGFS(short_pkt_len, short_pkt_len)
-#undef DEFINE_HNAT_INT_DEBUGFS
 
 static int hnat_mape_toggle_read(struct seq_file *m, void *private)
 {
@@ -3314,7 +3271,18 @@ static void hnat_qos_toggle_usage(void)
 
 static int hnat_qos_toggle_read(struct seq_file *m, void *private)
 {
-	seq_printf(m, "%d\n", qos_toggle);
+	if (qos_toggle == 0) {
+		pr_info("HQoS is disabled now!\n");
+	} else if (qos_toggle == 1) {
+		pr_info("HQoS is enabled now!\n");
+		pr_info("HQoS uplink is %s now!\n",
+				qos_ul_toggle ? "enabled" : "disabled");
+		pr_info("HQoS downlink is %s now!\n",
+				qos_dl_toggle ? "enabled" : "disabled");
+	} else if (qos_toggle == 2) {
+		pr_info("Per-port-per-queue mode is enabled!\n");
+	}
+
 	return 0;
 }
 
@@ -4176,13 +4144,6 @@ int hnat_init_debugfs(struct mtk_hnat *h)
 		}
 		debugfs_create_symlink(name, root, name_symlink);
 	}
-
-	debugfs_create_file("short_pkt_toggle", 0644, root, h,
-			    &hnat_short_pkt_toggle_fops);
-	debugfs_create_file("short_pkt_qid", 0644, root, h,
-			    &hnat_short_pkt_qid_fops);
-	debugfs_create_file("short_pkt_len", 0644, root, h,
-			    &hnat_short_pkt_len_fops);
 
 	return 0;
 
