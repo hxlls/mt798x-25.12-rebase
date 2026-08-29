@@ -389,8 +389,13 @@ mediatek_setup_macs()
 		;;
 	zyxel,ex5700-telenor)
 		label_mac=$(mtd_get_mac_binary Factory 0x4)
-		lan_mac=$(macaddr_add "$label_mac" 1)
-		wan_mac=$(macaddr_add "$label_mac" 2)
+		case "${label_mac}" in
+			""|"ff:ff:ff:ff:ff:ff"|"00:00:00:00:00:00") ;;
+			*)
+				lan_mac=$(macaddr_add "$label_mac" 1)
+				wan_mac=$(macaddr_add "$label_mac" 2)
+				;;
+		esac
 		;;
 	esac
 
