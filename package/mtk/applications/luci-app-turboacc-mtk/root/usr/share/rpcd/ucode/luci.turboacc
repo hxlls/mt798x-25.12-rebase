@@ -5,7 +5,7 @@
 
 'use strict';
 
-import { access, open, stat, readfile } from 'fs';
+import { access, open, popen, stat, readfile } from 'fs';
 import { connect } from 'ubus';
 
 // Persistent ubus connection
