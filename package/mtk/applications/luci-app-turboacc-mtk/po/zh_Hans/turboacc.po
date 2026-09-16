@@ -241,3 +241,4 @@ msgid "Restrict fullcone to the selected L4 protocols; every other protocol keep
 msgstr "限定全锥形 NAT 只对选中的 L4 协议生效，其余协议仍走普通伪装。留空表示对所有协议生效。"
 
 
+
