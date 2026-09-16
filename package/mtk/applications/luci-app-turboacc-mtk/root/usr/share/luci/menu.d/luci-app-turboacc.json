@@ -14,6 +14,14 @@
 			}
 		}
 	},
+	"admin/network/turboacc/acceleration": {
+		"title": "TurboACC settings",
+		"order": 10,
+		"action": {
+			"type": "view",
+			"path": "turboacc"
+		}
+	},
 	"admin/network/turboacc/fullcone": {
 		"title": "Fullcone NAT",
 		"order": 20,
