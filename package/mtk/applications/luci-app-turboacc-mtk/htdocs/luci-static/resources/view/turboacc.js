@@ -63,14 +63,17 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			uci.load('turboacc'),
+			uci.load('firewall'),
 			L.resolveDefault(callSystemFeatures(), {}),
 			L.resolveDefault(callMTKPPEStat(), {})
-		]);
+		]).then(function([turboacc, firewall, features, ppe_stats]) {
+			return { features: features, ppe_stats: ppe_stats };
+		});
 	},
 
 	render: function(data) {
-		let features = data[1];
-		let ppe_stats = data[2];
+		let features = data.features;
+		let ppe_stats = data.ppe_stats;
 
 		/* only check ppe when mtk_hnat is enabled */
 		let current_fastpath = uci.get('turboacc', 'config', 'fastpath');
@@ -78,12 +81,13 @@ return view.extend({
 
 		let m, s, o;
 
-		m = new form.Map('turboacc', _('TurboACC settings'),
+		m = new form.Map('turboacc', _('TurboACC'),
 			_('Open source flow offloading engine (fast path or hardware NAT).'));
 
-		s = m.section(form.TypedSection);
-		s.anonymous = true;
-		s.render = function () {
+		m.tabbed = true;
+
+		/* the status card is rendered at the top of the settings tab */
+		let buildStatusCard = function () {
 			/* Basic Status */
 			let table_rows = [
 				E('tr', {}, [
@@ -116,56 +120,35 @@ return view.extend({
 
 			let acc_status = E('table', { 'class': 'table' }, table_rows);
 
-			poll.add(async function () {
-				let tasks = [
-					L.resolveDefault(callFastPathStat(), {}),
-					L.resolveDefault(callFullConeStat(), {}),
-					L.resolveDefault(callTCPCCAStat(), {})
-				];
 
-				if (has_ppe) {
-					tasks.push(L.resolveDefault(callMTKPPEStat(), {}));
-				}
-
-				let res = await Promise.all(tasks);
-
-				const dom_ids = ['fastpath_state', 'fullcone_state', 'tcpcca_state'];
-				for (let i = 0; i < 3; i++) {
-					let el = document.getElementById(dom_ids[i]);
-					if (el) {
-						L.dom.content(el, renderStatusItem(res[i]));
-					}
-				}
-
-				if (has_ppe) {
-					let mtk_res = res[3];
-					let ppe_num = parseInt(mtk_res['PPE num'] || 0);
-					for (let j = 0; j < ppe_num; j++) {
-						let ppe_key = 'PPE' + j;
-						let ppe_bar = document.getElementById(`ppe${j}_entry`);
-
-						if (ppe_bar && mtk_res[ppe_key]) {
-							let bind_num = mtk_res[ppe_key]['BIND state num'];
-							let total_num = mtk_res[ppe_key]['entry num'];
-							L.dom.content(ppe_bar, renderProgressBar(bind_num, total_num));
-						}
-					}
-				}
-			});
-
-			return E('div', { 'class': 'cbi-section' }, [
-				E('h3', {}, _('Acceleration Status')),
-				acc_status
-			]);
+			return acc_status;
 		};
 
-		/* Mark user edited */
-		s = m.section(form.NamedSection, 'global', 'turboacc');
-		o = s.option(form.HiddenValue, 'set');
-		o.default = '1'; 
-		o.forcewrite = true;
+		s = m.section(form.NamedSection, 'config', 'turboacc', _('TurboACC settings'));
+		s.hidetitle = true;
 
-		s = m.section(form.NamedSection, 'config', 'turboacc');
+		/* status card on top of the engine settings. The node returned by
+		 * renderContents() IS the section element and carries the data-tab /
+		 * data-tab-title attributes the tab bar reads, so the card has to be
+		 * inserted into it - wrapping it in a new element would lose them and
+		 * leave the tab label empty. */
+		s.renderContents = function() {
+			return Promise.resolve(form.NamedSection.prototype.renderContents.apply(this, arguments))
+				.then(function(sectionEl) {
+					sectionEl.insertBefore(buildStatusCard(), sectionEl.firstChild);
+					return sectionEl;
+				});
+		};
+
+		/* "user edited" marker - the uci-defaults script checks it so an
+		 * upgrade never overwrites the user's configuration. It belongs to
+		 * the 'global' section, hence the explicit write; it must not be a
+		 * section of its own, or the tabbed map turns it into an empty tab. */
+		o = s.option(form.HiddenValue, 'set');
+		o.cfgvalue = function() { return '1'; };
+		o.write = function() { uci.set('turboacc', 'global', 'set', '1'); };
+		o.remove = function() { };
+		o.forcewrite = true;
 
 		o = s.option(form.ListValue, 'fastpath', _('Fastpath engine'),
 			_('The offloading engine for routing/NAT.'));
@@ -241,6 +224,114 @@ return view.extend({
 		o.default = 'cubic';
 		o.rmempty = false;
 
-		return m.render();
+
+		/* --------------------------------------------------- fullcone NAT tab */
+		s = m.section(form.TypedSection, '_fullcone', _('Fullcone NAT'));
+		s.anonymous = true;
+		s.addremove = false;
+		s.hidetitle = true;
+		s.cfgsections = function() { return ['_fullcone']; };
+		s.description = _('Endpoint-independent mapping and filtering for masqueraded traffic. The kernel keeps a second hash table inside conntrack, keyed by the translated 3-tuple (protocol, source address, source port), so peers can reach a client from an address it never contacted.') +
+			'<br /><br />' +
+			_('These are master gates. With a gate off, no zone gets fullcone regardless of its own setting.');
+
+		/* these options live in /etc/config/firewall */
+		o = s.option(form.Flag, 'fullcone', _('Fullcone NAT (IPv4)'),
+			_('Master gate for IPv4 fullcone.'));
+		o.default = '0';
+		o.rmempty = true;
+		o.cfgvalue = function() { return uci.get('firewall', '@defaults[0]', 'fullcone'); };
+		o.write = function(section_id, value) { uci.set('firewall', '@defaults[0]', 'fullcone', value); };
+		o.remove = function() { uci.unset('firewall', '@defaults[0]', 'fullcone'); };
+
+		o = s.option(form.Flag, 'fullcone6', _('Fullcone NAT (IPv6)'),
+			_('Master gate for IPv6. Most IPv6 setups do not need fullcone.'));
+		o.default = '0';
+		o.rmempty = true;
+		o.cfgvalue = function() { return uci.get('firewall', '@defaults[0]', 'fullcone6'); };
+		o.write = function(section_id, value) { uci.set('firewall', '@defaults[0]', 'fullcone6', value); };
+		o.remove = function() { uci.unset('firewall', '@defaults[0]', 'fullcone6'); };
+
+		o = s.option(form.SectionValue, '__zones__', form.GridSection, 'zone',
+			_('Per-zone control'),
+			_('Fullcone only takes effect on zones that masquerade IPv4 traffic, normally just the wan zone.'));
+		let gs = o.subsection;
+		gs.anonymous = true;
+		gs.addremove = false;
+		gs.sortable = false;
+		gs.cfgsections = function() {
+			return uci.sections('firewall', 'zone').map(function(z) { return z['.name']; });
+		};
+
+		let zo;
+
+		zo = gs.option(form.DummyValue, 'name', _('Zone'));
+		zo.cfgvalue = function(section_id) { return uci.get('firewall', section_id, 'name') || section_id; };
+
+		zo = gs.option(form.DummyValue, 'masq', _('IPv4 masquerading'));
+		zo.cfgvalue = function(section_id) {
+			return uci.get('firewall', section_id, 'masq') == '1' ? _('enabled') : _('disabled');
+		};
+
+		zo = gs.option(form.Flag, 'fullcone', _('Fullcone NAT'),
+			_('Enable fullcone for this zone. Uncheck to keep plain masquerading here.'));
+		zo.default = '1';
+		zo.rmempty = false;
+		zo.cfgvalue = function(section_id) { return uci.get('firewall', section_id, 'fullcone'); };
+		zo.write = function(section_id, value) { uci.set('firewall', section_id, 'fullcone', value); };
+		zo.remove = function(section_id) { uci.unset('firewall', section_id, 'fullcone'); };
+
+		zo = gs.option(form.MultiValue, 'fullcone_proto', _('Protocols'),
+			_('Restrict fullcone to the selected L4 protocols; every other protocol keeps plain masquerading. Leave empty to apply fullcone to all protocols.'));
+		zo.value('udp', _('UDP'));
+		zo.value('tcp', _('TCP'));
+		zo.value('udplite', _('UDP-Lite'));
+		zo.value('sctp', _('SCTP'));
+		zo.value('dccp', _('DCCP'));
+		zo.optional = true;
+		zo.cfgvalue = function(section_id) { return uci.get('firewall', section_id, 'fullcone_proto'); };
+		zo.write = function(section_id, value) { uci.set('firewall', section_id, 'fullcone_proto', value); };
+		zo.remove = function(section_id) { uci.unset('firewall', section_id, 'fullcone_proto'); };
+
+		return m.render().then(function(nodes) {
+			/* register the status poll once, for the whole page */
+			poll.add(async function () {
+				let tasks = [
+					L.resolveDefault(callFastPathStat(), {}),
+					L.resolveDefault(callFullConeStat(), {}),
+					L.resolveDefault(callTCPCCAStat(), {})
+				];
+
+				if (has_ppe) {
+					tasks.push(L.resolveDefault(callMTKPPEStat(), {}));
+				}
+
+				let res = await Promise.all(tasks);
+
+				const dom_ids = ['fastpath_state', 'fullcone_state', 'tcpcca_state'];
+				for (let i = 0; i < 3; i++) {
+					let el = document.getElementById(dom_ids[i]);
+					if (el) {
+						L.dom.content(el, renderStatusItem(res[i]));
+					}
+				}
+
+				if (has_ppe) {
+					let mtk_res = res[3];
+					let ppe_num = parseInt(mtk_res['PPE num'] || 0);
+					for (let j = 0; j < ppe_num; j++) {
+						let ppe_key = 'PPE' + j;
+						let ppe_bar = document.getElementById(`ppe${j}_entry`);
+
+						if (ppe_bar && mtk_res[ppe_key]) {
+							let bind_num = mtk_res[ppe_key]['BIND state num'];
+							let total_num = mtk_res[ppe_key]['entry num'];
+							L.dom.content(ppe_bar, renderProgressBar(bind_num, total_num));
+						}
+					}
+				}
+			});
+			return nodes;
+		});
 	}
 });
