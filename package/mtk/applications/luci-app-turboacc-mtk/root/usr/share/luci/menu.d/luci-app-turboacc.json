@@ -6,8 +6,28 @@
 			"path": "turboacc"
 		},
 		"depends": {
-			"acl": [ "luci-app-turboacc" ],
-			"uci": { "turboacc": true }
+			"acl": [
+				"luci-app-turboacc"
+			],
+			"uci": {
+				"turboacc": true
+			}
+		}
+	},
+	"admin/network/turboacc/fullcone": {
+		"title": "Fullcone NAT",
+		"order": 20,
+		"action": {
+			"type": "view",
+			"path": "fullcone"
+		},
+		"depends": {
+			"acl": [
+				"luci-app-turboacc"
+			],
+			"uci": {
+				"firewall": true
+			}
 		}
 	}
 }

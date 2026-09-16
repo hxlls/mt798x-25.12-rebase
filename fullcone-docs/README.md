@@ -12,7 +12,7 @@ stays conflict-free - merge `25.12` into this branch to pick up updates.
 | `target/linux/generic/hack-6.12/986-add-sonic-fullcone-to-nft.patch` | nft_masq: registers the `fullcone` nftables expression |
 | `package/network/config/firewall4/patches/001-firewall4-add-support-for-fullcone-nat.patch` | fw4: per-zone + per-protocol fullcone |
 | `package/network/config/firewall4/Makefile` | drops the `+kmod-nft-fullcone` dependency |
-| `fullcone-docs/luci-app-firewall-perzone-fullcone.patch` | LuCI UI - also has to be installed into the luci feed, see below |
+| `package/mtk/applications/luci-app-turboacc-mtk/htdocs/.../view/fullcone.js` | LuCI page: global gates + per-zone table |
 
 Upstream patch 985 (iptables `FULLCONE` target) is deliberately not used:
 this tree is firewall4-only, there is no `iptables-mod-fullconenat`.
@@ -29,15 +29,6 @@ this tree is firewall4-only, there is no `iptables-mod-fullconenat`.
    The stale module also must not linger in the image - a full `make` removes
    it automatically via the package stale-file cleanup.
 
-2. **The LuCI patch lives in the luci feed**, which is a separate git
-   checkout and not part of this repository. Re-install it whenever the feed
-   is re-cloned (`rm -rf feeds/luci && ./scripts/feeds update -a`):
-
-       ./fullcone-docs/install-luci-patch.sh
-
-   A plain `./scripts/feeds update -a` keeps it, since the `patches/`
-   directory inside the feed package is untracked and git pull leaves it
-   alone.
 
 ## Build
 
@@ -72,32 +63,22 @@ selector when editing by hand.
 
 ## Where the controls live
 
-Network -> TurboACC (网络 -> 网络加速)
+Everything is on one page: **Network -> TurboACC -> Fullcone NAT**.
 
-  - the status row "Full Cone NAT" now reports the in-kernel implementation as
-    "SONiC Fullcone". Before this it only knew the removed `nft_fullcone` /
-    `xt_FULLCONENAT` modules and therefore always showed "Disabled" even when
-    fullcone was active.
-  - the two global gates, "Fullcone NAT (IPv4)" and "Fullcone NAT (IPv6)".
-    They write to /etc/config/firewall, so the ACL had to be extended to let
-    this page touch the firewall config.
+  - two global gates, "Fullcone NAT (IPv4)" and "Fullcone NAT (IPv6)"
+  - a per-zone table with columns *Zone / IPv4 masquerading / Fullcone NAT /
+    Protocols*. The protocol column restricts fullcone to the selected L4
+    protocols, leaving every other protocol on plain masquerading.
 
-Network -> Firewall -> General Settings (网络 -> 防火墙)
+The TurboACC page itself only reports status (its "Full Cone NAT" row now
+shows "SONiC Fullcone" instead of always claiming "Disabled") and carries a
+button that opens the fullcone page.
 
-  - the same two global gates
-  - per-zone switch: open the zone's edit dialog, "General Settings" tab.
-    It only appears for zones with IPv4 masquerading enabled - normally `wan`,
-    not `lan`.
-  - per-zone protocol restriction: the zone's "Advanced Settings" tab.
-
-All strings are translated to zh_Hans. The firewall page lives in the luci
-feed, whose po/ directory is compiled from the package source rather than from
-build_dir, so its translations cannot be carried by a patch - they are kept in
-`luci-app-firewall-zh_Hans.po` and appended by `install-luci-patch.sh`.
-
-Note: when sing-box is running with TPROXY, non-CN destinations are handed to
-the proxy and never traverse the firewall's NAT at all, so fullcone only
-affects directly routed traffic.
+The page lives in `luci-app-turboacc-mtk`, which is part of this repository.
+An earlier revision put the same controls on the firewall page via a patch
+against the luci feed; that patch is gone, because a feed re-clone silently
+loses it and the switch then existed in two places. The firewall4 patch still
+provides the actual fw4 rules - only the UI moved.
 
 ## Verify on the device
 
