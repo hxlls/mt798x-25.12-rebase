@@ -240,8 +240,4 @@ msgstr "为本站区启用全锥形 NAT。取消勾选则本站区保持普通�
 msgid "Restrict fullcone to the selected L4 protocols; every other protocol keeps plain masquerading. Leave empty to apply fullcone to all protocols."
 msgstr "限定全锥形 NAT 只对选中的 L4 协议生效，其余协议仍走普通伪装。留空表示对所有协议生效。"
 
-msgid "Open fullcone NAT settings"
-msgstr "打开全锥形 NAT 设置"
 
-msgid "Fullcone NAT is configured on a separate page: global switches plus a per-zone table with optional protocol restriction."
-msgstr "全锥形 NAT 在独立页面中配置：全局开关，以及带可选协议限制的按区域控制表。"

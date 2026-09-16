@@ -243,17 +243,6 @@ return view.extend({
 		o.default = 'cubic';
 		o.rmempty = false;
 
-		/* Fullcone NAT has its own page (global gates + per-zone table). */
-		o = s.option(form.DummyValue, '_fullcone_page');
-		o.rawhtml = true;
-		o.default = E('div', {}, [
-			E('p', {}, _('Fullcone NAT is configured on a separate page: global switches plus a per-zone table with optional protocol restriction.')),
-			E('a', {
-				'class': 'btn cbi-button cbi-button-action',
-				'href': L.url('admin/network/turboacc/fullcone')
-			}, _('Open fullcone NAT settings'))
-		]);
-
 		return m.render();
 	}
 });
