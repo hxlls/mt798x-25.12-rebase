@@ -17,3 +17,17 @@ DEST="$TREE/feeds/luci/applications/luci-app-firewall/patches"
 mkdir -p "$DEST"
 cp -f "$SRC" "$DEST/001-luci-app-firewall-perzone-fullcone.patch"
 echo "installed -> $DEST/001-luci-app-firewall-perzone-fullcone.patch"
+
+# The LuCI firewall UI lives in this feed; its po/ directory is compiled from
+# the package source (not from build_dir), so a patch cannot reach it and the
+# translations have to be appended directly.
+PO="$TREE/feeds/luci/applications/luci-app-firewall/po/zh_Hans/firewall.po"
+SNIP="$HERE/luci-app-firewall-zh_Hans.po"
+if [ -f "$PO" ] && [ -f "$SNIP" ]; then
+	if grep -q 'Fullcone NAT (IPv4)' "$PO"; then
+		echo "zh_Hans translations already present, skipping"
+	else
+		cat "$SNIP" >> "$PO"
+		echo "appended zh_Hans translations -> $PO"
+	fi
+fi

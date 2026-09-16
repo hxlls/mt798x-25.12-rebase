@@ -70,6 +70,35 @@ Protocol names are not checked against a whitelist (same behaviour as fw4's
 produces an invalid ruleset and the firewall refuses to load - use the LuCI
 selector when editing by hand.
 
+## Where the controls live
+
+Network -> TurboACC (网络 -> 网络加速)
+
+  - the status row "Full Cone NAT" now reports the in-kernel implementation as
+    "SONiC Fullcone". Before this it only knew the removed `nft_fullcone` /
+    `xt_FULLCONENAT` modules and therefore always showed "Disabled" even when
+    fullcone was active.
+  - the two global gates, "Fullcone NAT (IPv4)" and "Fullcone NAT (IPv6)".
+    They write to /etc/config/firewall, so the ACL had to be extended to let
+    this page touch the firewall config.
+
+Network -> Firewall -> General Settings (网络 -> 防火墙)
+
+  - the same two global gates
+  - per-zone switch: open the zone's edit dialog, "General Settings" tab.
+    It only appears for zones with IPv4 masquerading enabled - normally `wan`,
+    not `lan`.
+  - per-zone protocol restriction: the zone's "Advanced Settings" tab.
+
+All strings are translated to zh_Hans. The firewall page lives in the luci
+feed, whose po/ directory is compiled from the package source rather than from
+build_dir, so its translations cannot be carried by a patch - they are kept in
+`luci-app-firewall-zh_Hans.po` and appended by `install-luci-patch.sh`.
+
+Note: when sing-box is running with TPROXY, non-CN destinations are handed to
+the proxy and never traverse the firewall's NAT at all, so fullcone only
+affects directly routed traffic.
+
 ## Verify on the device
 
     nft list ruleset | grep fullcone

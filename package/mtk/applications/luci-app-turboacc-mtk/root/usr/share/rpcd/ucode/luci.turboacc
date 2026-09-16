@@ -74,7 +74,19 @@ const methods = {
 				fctype = 'nft_fullcone';
 			} else if (module_active('xt_FULLCONENAT')) {
 				fctype = 'xt_FULLCONENAT';
-			} else {
+			} else if (module_active('nft_masq')) {
+				// SONiC-style fullcone lives inside nft_masq.ko and is gated per
+				// zone, so a loaded module alone proves nothing - the running
+				// ruleset has to actually contain fullcone rules.
+				let nft = popen('nft list ruleset 2>/dev/null | grep -m1 fullcone');
+				if (nft) {
+					let line = nft.read('line');
+					if (line) fctype = 'SONiC Fullcone';
+					nft.close();
+				}
+			}
+
+			if (!fctype) {
 				// Only use popen as a fallback for Broadcom check
 				let ipt = popen('iptables -t nat -L zone_wan_postrouting 2>/dev/null');
 				if (ipt) {

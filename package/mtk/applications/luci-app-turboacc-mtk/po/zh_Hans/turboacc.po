@@ -171,3 +171,18 @@ msgstr "HNAT PPE数量"
 
 msgid "Bind Entries"
 msgstr "已绑定连接数"
+
+msgid "Fullcone NAT (IPv4)"
+msgstr "全锥形 NAT(IPv4)"
+
+msgid "Fullcone NAT (IPv6)"
+msgstr "全锥形 NAT(IPv6)"
+
+msgid "Global gate for fullcone NAT. Turn it on here, then opt in per zone on the Firewall page, where it can also be limited to specific protocols."
+msgstr "全锥形 NAT 的全局总开关。在此启用后，再到「防火墙」页面按区域分别开启，并可限定只对特定协议生效。"
+
+msgid "Global gate for fullcone NAT on IPv6. Most IPv6 setups do not need fullcone."
+msgstr "IPv6 的全锥形 NAT 全局总开关。大多数 IPv6 环境不需要全锥形 NAT。"
+
+msgid "SONiC Fullcone"
+msgstr "SONiC 全锥形 NAT(nft_masq 内置)"

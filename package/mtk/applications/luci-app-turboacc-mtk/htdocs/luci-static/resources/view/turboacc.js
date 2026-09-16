@@ -63,6 +63,7 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			uci.load('turboacc'),
+			uci.load('firewall'),
 			L.resolveDefault(callSystemFeatures(), {}),
 			L.resolveDefault(callMTKPPEStat(), {})
 		]);
@@ -240,6 +241,50 @@ return view.extend({
 		}
 		o.default = 'cubic';
 		o.rmempty = false;
+
+		/* Fullcone NAT global gates. These two options belong to
+		 * /etc/config/firewall, so they are wired to that config explicitly.
+		 * Zone-level switches and the protocol restriction stay on the
+		 * Firewall page (Network -> Firewall -> Zones). */
+		o = s.option(form.Flag, 'fullcone', _('Fullcone NAT (IPv4)'),
+			_('Global gate for fullcone NAT. Turn it on here, then opt in per zone on the Firewall page, where it can also be limited to specific protocols.'));
+		o.default = '0';
+		o.rmempty = true;
+		o.cfgvalue = function() {
+			return uci.get('firewall', '@defaults[0]', 'fullcone');
+		};
+		o.write = function(section_id, value) {
+			uci.set('firewall', '@defaults[0]', 'fullcone', value);
+			return uci.save('firewall').then(function() {
+				return uci.commit('firewall');
+			});
+		};
+		o.remove = function() {
+			uci.unset('firewall', '@defaults[0]', 'fullcone');
+			return uci.save('firewall').then(function() {
+				return uci.commit('firewall');
+			});
+		};
+
+		o = s.option(form.Flag, 'fullcone6', _('Fullcone NAT (IPv6)'),
+			_('Global gate for fullcone NAT on IPv6. Most IPv6 setups do not need fullcone.'));
+		o.default = '0';
+		o.rmempty = true;
+		o.cfgvalue = function() {
+			return uci.get('firewall', '@defaults[0]', 'fullcone6');
+		};
+		o.write = function(section_id, value) {
+			uci.set('firewall', '@defaults[0]', 'fullcone6', value);
+			return uci.save('firewall').then(function() {
+				return uci.commit('firewall');
+			});
+		};
+		o.remove = function() {
+			uci.unset('firewall', '@defaults[0]', 'fullcone6');
+			return uci.save('firewall').then(function() {
+				return uci.commit('firewall');
+			});
+		};
 
 		return m.render();
 	}

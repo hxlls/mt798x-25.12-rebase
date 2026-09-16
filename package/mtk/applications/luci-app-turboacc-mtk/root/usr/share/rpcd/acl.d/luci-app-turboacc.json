@@ -5,10 +5,10 @@
 			"ubus": {
 				"luci.turboacc": [ "getSystemFeatures", "getFastPathStat", "getFullConeStat", "getTCPCCAStat", "getMTKPPEStat" ]
 			},
-			"uci": [ "turboacc" ]
+			"uci": [ "turboacc", "firewall" ]
 		},
 		"write": {
-			"uci": [ "turboacc" ]
+			"uci": [ "turboacc", "firewall" ]
 		}
 	}
 }
