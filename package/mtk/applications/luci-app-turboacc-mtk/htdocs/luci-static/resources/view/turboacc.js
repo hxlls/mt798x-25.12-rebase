@@ -38,6 +38,18 @@ let callMTKPPEStat = rpc.declare({
 	expect: { '': {} }
 });
 
+let callFullConeCounters = rpc.declare({
+	object: 'luci.turboacc',
+	method: 'getFullConeCounters',
+	expect: { '': {} }
+});
+
+let callFullConeFlows = rpc.declare({
+	object: 'luci.turboacc',
+	method: 'getFullConeFlows',
+	expect: { '': {} }
+});
+
 function renderProgressBar(value, max, byte) {
 	let vn = parseInt(value) || 0,
 		mn = parseInt(max) || 100,
@@ -57,6 +69,65 @@ function renderStatusItem(stat) {
 	}
 
 	return E('em', { 'style': 'color:green; font-weight:bold' }, stat.type);
+}
+
+function renderCounterTable(rows) {
+	if (!rows || !rows.length)
+		return E('em', {}, _('No fullcone rule is active in the running ruleset.'));
+
+	let trs = [
+		E('tr', { 'class': 'tr table-titles' }, [
+			E('th', { 'class': 'th' }, _('Direction')),
+			E('th', { 'class': 'th' }, _('Protocol')),
+			E('th', { 'class': 'th' }, _('Packets')),
+			E('th', { 'class': 'th' }, _('Bytes'))
+		])
+	];
+
+	for (let i = 0; i < rows.length; i++) {
+		let r = rows[i];
+		trs.push(E('tr', { 'class': 'tr' }, [
+			E('td', { 'class': 'td tdLeft' }, r.direction),
+			E('td', { 'class': 'td tdLeft' }, r.proto),
+			E('td', { 'class': 'td' }, String(r.packets)),
+			E('td', { 'class': 'td' }, String.format('%1024.2mB', r.bytes))
+		]));
+	}
+
+	return E('table', { 'class': 'table' }, trs);
+}
+
+function renderFlowTable(res) {
+	let rows = (res && res.rows) || [];
+
+	if (!rows.length)
+		return E('div', {}, E('em', {}, _('No inbound flow produced by fullcone yet.')));
+
+	let trs = [
+		E('tr', { 'class': 'tr table-titles' }, [
+			E('th', { 'class': 'th' }, _('Peer')),
+			E('th', { 'class': 'th' }, _('LAN host')),
+			E('th', { 'class': 'th' }, _('Protocol')),
+			E('th', { 'class': 'th' }, _('Port')),
+			E('th', { 'class': 'th' }, _('Packets')),
+			E('th', { 'class': 'th' }, _('Bytes'))
+		])
+	];
+
+	for (let i = 0; i < rows.length; i++) {
+		let r = rows[i];
+
+		trs.push(E('tr', { 'class': 'tr' }, [
+			E('td', { 'class': 'td tdLeft' }, r.peer),
+			E('td', { 'class': 'td tdLeft' }, r.host),
+			E('td', { 'class': 'td tdLeft' }, r.proto),
+			E('td', { 'class': 'td' }, String(r.port)),
+			E('td', { 'class': 'td' }, String(r.packets)),
+			E('td', { 'class': 'td' }, String.format('%1024.2mB', r.bytes))
+		]));
+	}
+
+	return E('table', { 'class': 'table' }, trs);
 }
 
 return view.extend({
@@ -235,6 +306,21 @@ return view.extend({
 			'<br /><br />' +
 			_('These are master gates. With a gate off, no zone gets fullcone regardless of its own setting.');
 
+		/* Hit counters are appended after the zone grid. Same rule as on the
+		 * settings tab: renderContents() returns the section element itself and
+		 * that element carries data-tab / data-tab-title, so the card has to be
+		 * inserted into it - wrapping it in a new element would blank the label. */
+		s.renderContents = function() {
+			return Promise.resolve(form.TypedSection.prototype.renderContents.apply(this, arguments))
+				.then(function(sectionEl) {
+					sectionEl.appendChild(E('div', { 'id': 'fullcone_counters' },
+						E('em', {}, _('Collecting data...'))));
+					sectionEl.appendChild(E('div', { 'id': 'fullcone_flows' },
+						E('em', {}, _('Collecting data...'))));
+					return sectionEl;
+				});
+		};
+
 		/* these options live in /etc/config/firewall */
 		o = s.option(form.Flag, 'fullcone', _('Fullcone NAT (IPv4)'),
 			_('Master gate for IPv4 fullcone.'));
@@ -256,6 +342,28 @@ return view.extend({
 			_('Per-zone control'),
 			_('Fullcone only takes effect on zones that masquerade IPv4 traffic, normally just the wan zone.'));
 		let gs = o.subsection;
+
+		/* The zone sections live in /etc/config/firewall, not in 'turboacc'. */
+		gs.uciconfig = 'firewall';
+
+		/* The edit modal resolves its section with parent.data.get(parent.config,
+		 * section_id) - parent.config being this map's config, 'turboacc'. The
+		 * zone is not there, the lookup returns null and `sref['.name']` throws
+		 * "Cannot read properties of null". Swap the config in only for that
+		 * call, so the grid keeps its plain-text columns and its Edit button. */
+		let orig_modal = gs.renderMoreOptionsModal;
+
+		gs.renderMoreOptionsModal = function(section_id, ev) {
+			let map = this.map, cfg = map.config;
+
+			map.config = this.uciconfig || cfg;
+
+			let restore = function(r) { map.config = cfg; return r; };
+
+			return Promise.resolve(orig_modal.call(this, section_id, ev))
+				.then(restore, function(e) { restore(); throw e; });
+		};
+
 		gs.anonymous = true;
 		gs.addremove = false;
 		gs.sortable = false;
@@ -331,6 +439,26 @@ return view.extend({
 					}
 				}
 			});
+			/* the counters refresh on their own, slower cadence: the backend
+			 * shells out to nft, which is not worth doing at the status-card rate. */
+			poll.add(async function() {
+				let cel = document.getElementById('fullcone_counters');
+				let fel = document.getElementById('fullcone_flows');
+
+				if (!cel && !fel)
+					return;
+
+				if (cel) {
+					let res = await L.resolveDefault(callFullConeCounters(), { rows: [] });
+					L.dom.content(cel, renderCounterTable(res.rows));
+				}
+
+				if (fel) {
+					let res = await L.resolveDefault(callFullConeFlows(), {});
+					L.dom.content(fel, renderFlowTable(res));
+				}
+			}, 10);
+
 			return nodes;
 		});
 	}

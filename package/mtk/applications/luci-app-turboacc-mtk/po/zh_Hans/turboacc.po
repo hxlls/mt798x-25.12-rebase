@@ -242,3 +242,35 @@ msgstr "限定全锥形 NAT 只对选中的 L4 协议生效，其余协议仍走
 
 
 
+
+#: applications/luci-app-turboacc/htdocs/luci-static/resources/view/turboacc.js
+msgid "Direction"
+msgstr "方向"
+
+#: applications/luci-app-turboacc/htdocs/luci-static/resources/view/turboacc.js
+msgid "Packets"
+msgstr "数据包"
+
+#: applications/luci-app-turboacc/htdocs/luci-static/resources/view/turboacc.js
+msgid "Bytes"
+msgstr "字节"
+
+#: applications/luci-app-turboacc/htdocs/luci-static/resources/view/turboacc.js
+msgid "No fullcone rule is active in the running ruleset."
+msgstr "当前规则集中没有生效中的全锥规则。"
+
+#: applications/luci-app-turboacc/htdocs/luci-static/resources/view/turboacc.js
+msgid "Peer"
+msgstr "对端"
+
+#: applications/luci-app-turboacc/htdocs/luci-static/resources/view/turboacc.js
+msgid "LAN host"
+msgstr "内网主机"
+
+#: applications/luci-app-turboacc/htdocs/luci-static/resources/view/turboacc.js
+msgid "Port"
+msgstr "端口"
+
+#: applications/luci-app-turboacc/htdocs/luci-static/resources/view/turboacc.js
+msgid "No inbound flow produced by fullcone yet."
+msgstr "全锥当前还没有产生入站会话。"
