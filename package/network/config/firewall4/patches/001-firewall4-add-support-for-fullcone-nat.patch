@@ -1,5 +1,5 @@
 From: openwrt-sonic-fullcone integration <noreply@localhost>
-Date: Wed, 16 Sep 2026 00:00:00 +0000
+Date: Mon, 21 Sep 2026 15:46:36 +0000
 Subject: [PATCH] firewall4: fullcone NAT with per-zone and per-protocol granularity
 
 Extends the existing fullcone support with two levels of control on top of
@@ -21,22 +21,21 @@ the listed L4 protocols while every other protocol keeps plain masquerading
 (the fullcone rules are emitted first in the nat chain and the generic
 masquerade rule stays as fallback).
 
+The fullcone rules carry a counter so the running ruleset can be told apart
+from a merely configured one; the counter is emitted before the fullcone
+statement because the first nat statement in a chain terminates rule
+traversal.
+
 The kernel side comes from the SONiC fullcone patches (984/986 in
 target/linux/generic/hack-6.12), which register the "fullcone" nftables
 expression inside nft_masq.ko; libnftnl/nftables userspace is unchanged.
 
 ---
-root/etc/config/firewall                           |   4 +
- root/usr/share/firewall4/templates/ruleset.uc      |  36 ++++++--
- .../usr/share/firewall4/templates/zone-fullcone.uc |   6 ++
- root/usr/share/ucode/fw4.uc                        | 100 ++++++++++++++++++++-
- 4 files changed, 139 insertions(+), 7 deletions(-)
----
 diff --git a/root/etc/config/firewall b/root/etc/config/firewall
 index 48b2440..d1e4280 100644
 --- a/root/etc/config/firewall
 +++ b/root/etc/config/firewall
-@@ -5,6 +5,10 @@ config defaults
+@@ -5,6 +5,10 @@
  	option forward		REJECT
  # Uncomment this line to disable ipv6 rules
  #	option disable_ipv6	1
@@ -51,7 +50,7 @@ diff --git a/root/usr/share/firewall4/templates/ruleset.uc b/root/usr/share/fire
 index 2bec4d9..02d7535 100644
 --- a/root/usr/share/firewall4/templates/ruleset.uc
 +++ b/root/usr/share/firewall4/templates/ruleset.uc
-@@ -327,6 +327,16 @@ table inet fw4 {
+@@ -327,6 +327,16 @@
  {%   for (let redirect in fw4.redirects(`dstnat_${zone.name}`)): %}
  		{%+ include("redirect.uc", { fw4, zone, redirect }) %}
  {%   endfor %}
@@ -68,7 +67,7 @@ index 2bec4d9..02d7535 100644
  {%   fw4.includes('chain-append', `dstnat_${zone.name}`) %}
  	}
  
-@@ -338,18 +348,32 @@ table inet fw4 {
+@@ -338,18 +348,32 @@
  		{%+ include("redirect.uc", { fw4, zone, redirect }) %}
  {%   endfor %}
  {%   if (zone.masq): %}
@@ -109,18 +108,18 @@ index 2bec4d9..02d7535 100644
  	}
 diff --git a/root/usr/share/firewall4/templates/zone-fullcone.uc b/root/usr/share/firewall4/templates/zone-fullcone.uc
 new file mode 100644
-index 0000000..f264575
+index 0000000..f25190d
 --- /dev/null
 +++ b/root/usr/share/firewall4/templates/zone-fullcone.uc
 @@ -0,0 +1,6 @@
 +{# /usr/share/firewall4/templates/zone-fullcone.uc
 +   proto: L4 protocol name to restrict the rule to, or null for all protocols
 + #}
-+		meta nfproto {{ fw4.nfproto(family) }}{% if (proto): %} meta l4proto {{ proto }}{% endif %} fullcone comment "!fw4: Handle {{
++		meta nfproto {{ fw4.nfproto(family) }}{% if (proto): %} meta l4proto {{ proto }}{% endif %}{% if (zone.counter): %} counter{% endif %} fullcone comment "!fw4: Handle {{
 +		zone.name
 +}} {{ fw4.nfproto(family, true) }}{% if (proto): %} {{ proto }}{% endif %} fullcone NAT {{ direction }} traffic"
 diff --git a/root/usr/share/ucode/fw4.uc b/root/usr/share/ucode/fw4.uc
-index 690deb0..a8ded50 100644
+index 690deb0..3e88a3a 100644
 --- a/root/usr/share/ucode/fw4.uc
 +++ b/root/usr/share/ucode/fw4.uc
 @@ -1,3 +1,5 @@
@@ -129,7 +128,7 @@ index 690deb0..a8ded50 100644
  const fs = require("fs");
  const uci = require("uci");
  const ubus = require("ubus");
-@@ -489,6 +491,25 @@ function nft_try_hw_offload(devices) {
+@@ -489,6 +491,25 @@
  	return (rc == 0);
  }
  
@@ -155,7 +154,7 @@ index 690deb0..a8ded50 100644
  
  return {
  	read_kernel_version: function() {
-@@ -855,6 +876,18 @@ return {
+@@ -855,6 +876,18 @@
  			warn(`[!] ${msg}\n`);
  	},
  
@@ -174,7 +173,7 @@ index 690deb0..a8ded50 100644
  	get: function(sid, opt) {
  		return this.cursor.get("firewall", sid, opt);
  	},
-@@ -1036,6 +1069,21 @@ return {
+@@ -1036,6 +1069,21 @@
  		}
  	},
  
@@ -196,7 +195,7 @@ index 690deb0..a8ded50 100644
  	parse_policy: function(val) {
  		return this.parse_enum(val, [
  			"accept",
-@@ -1475,6 +1523,7 @@ return {
+@@ -1475,6 +1523,7 @@
  			"dnat",
  			"snat",
  			"masquerade",
@@ -204,7 +203,7 @@ index 690deb0..a8ded50 100644
  			"accept",
  			"reject",
  			"drop"
-@@ -1946,6 +1995,8 @@ return {
+@@ -1946,6 +1995,8 @@
  		}
  
  		let defs = this.parse_options(data, {
@@ -213,7 +212,7 @@ index 690deb0..a8ded50 100644
  			input: [ "policy", "drop" ],
  			output: [ "policy", "drop" ],
  			forward: [ "policy", "drop" ],
-@@ -1980,6 +2031,12 @@ return {
+@@ -1980,6 +2031,12 @@
  
  		delete defs.syn_flood;
  
@@ -226,7 +225,7 @@ index 690deb0..a8ded50 100644
  		this.state.defaults = defs;
  	},
  
-@@ -2005,6 +2062,9 @@ return {
+@@ -2005,6 +2062,9 @@
  
  			masq6: [ "bool" ],
  
@@ -236,7 +235,7 @@ index 690deb0..a8ded50 100644
  			extra: [ "string", null, UNSUPPORTED ],
  			extra_src: [ "string", null, UNSUPPORTED ],
  			extra_dest: [ "string", null, UNSUPPORTED ],
-@@ -2036,6 +2096,29 @@ return {
+@@ -2036,6 +2096,34 @@
  			}
  		}
  
@@ -244,8 +243,13 @@ index 690deb0..a8ded50 100644
 +		 * zone.fullcone opts a single zone in (default: enabled), and
 +		 * zone.fullcone_proto optionally restricts fullcone to specific L4
 +		 * protocols - every other protocol keeps plain masquerading. */
-+		zone.fullcone = !!(this.state.defaults.fullcone && zone.fullcone);
-+		zone.fullcone6 = !!(this.state.defaults.fullcone6 && zone.fullcone);
++		/* The per-zone intent must be read before the IPv4 gate is applied below.
++		 * Reading the already-gated zone.fullcone would silently make IPv6
++		 * fullcone depend on defaults.fullcone as well. */
++		let fullcone_raw = zone.fullcone;
++
++		zone.fullcone = !!(this.state.defaults.fullcone && fullcone_raw);
++		zone.fullcone6 = !!(this.state.defaults.fullcone6 && fullcone_raw);
 +
 +		if (zone.fullcone_proto && length(zone.fullcone_proto)) {
 +			let protos = [];
@@ -266,7 +270,7 @@ index 690deb0..a8ded50 100644
  		if (zone.mtu_fix && this.kernel < 0x040a0000) {
  			this.warn_section(data, "option 'mtu_fix' requires kernel 4.10 or later");
  			return;
-@@ -2205,8 +2288,23 @@ return {
+@@ -2205,8 +2293,23 @@
  		zone.related_subnets = related_subnets;
  		zone.related_physdevs = related_physdevs;
  
