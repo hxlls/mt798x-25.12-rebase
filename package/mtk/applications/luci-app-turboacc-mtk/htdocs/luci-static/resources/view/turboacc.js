@@ -211,16 +211,6 @@ return view.extend({
 				});
 		};
 
-		/* "user edited" marker - the uci-defaults script checks it so an
-		 * upgrade never overwrites the user's configuration. It belongs to
-		 * the 'global' section, hence the explicit write; it must not be a
-		 * section of its own, or the tabbed map turns it into an empty tab. */
-		o = s.option(form.HiddenValue, 'set');
-		o.cfgvalue = function() { return '1'; };
-		o.write = function() { uci.set('turboacc', 'global', 'set', '1'); };
-		o.remove = function() { };
-		o.forcewrite = true;
-
 		o = s.option(form.ListValue, 'fastpath', _('Fastpath engine'),
 			_('The offloading engine for routing/NAT.'));
 		o.value('disabled', _('Disable'));

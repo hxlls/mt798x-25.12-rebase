@@ -6,32 +6,46 @@ This repository is worked on ImmortalWrt with MTK OpenWrt Feeds patches imported
 
 ## Commit Cutoff Revisions
 
-### ImmortalWrt: [1d34e7b](https://github.com/immortalwrt/immortalwrt/commit/1d34e7b88708d4eeb3feabe0b2b6f835a909c9c0)
+### ImmortalWrt: [37013c8](https://github.com/immortalwrt/immortalwrt/commit/37013c8153ac6c9e11f4f9210d22832beb3bcb64)
 
 ```
-mediatek: fix merge conflict
+Merge Official Source
 
-Fixes: #2458
-
-Fixes: 3a0e732472ba ("Merge Official Source")
 Signed-off-by: Tianling Shen <cnsztl@immortalwrt.org>
 ```
 
-### MTK OpenWrt Feeds: [511100a](https://github.com/mediatek/mtk-openwrt-feeds/commit/511100a886cf99a12588ccbb810c70928a772027)
+### MTK OpenWrt Feeds: [a15454c](https://github.com/mediatek/mtk-openwrt-feeds/commit/a15454c888f4f4144c50e33b5feef4f247c5f78b)
 
 ```
-[openwrt-25.12][mt7988][npu][Enable NPU L4S in autobuild defconfig]
+[kernel-6.12][common][hnat][Fix debugfs-configured PPE settings being lost after a NETSYS SER]
 
 [Description]
-Enable NPU package and L4S support in mt798x_rfb autobuild defconfig:
-1. Add CONFIG_PACKAGE_kmod-npu=y
-2. Add CONFIG_MTK_NPU_L4S=y
-for both mt7992 and mt7996 25.12 profiles.
+Fix debugfs-configured PPE settings being lost after a NETSYS SER.
+
+[Root Cause]
+A SER resets the PPE registers to hardware defaults, then
+hnat_warm_init() re-programs them via hnat_hw_init(), which used
+hardcoded constants and did not cover every register that debugfs can
+configure. Only the settings hnat_hw_init() already read back from
+hnat_priv survived, the rest reverted silently, and in some cases the
+software state in hnat_priv no longer matched the hardware.
+
+[Solution]
+Latch the affected settings in hnat_priv (defaults set in
+hnat_probe()) and program them from hnat_hw_init(), which is shared by
+the cold and warm init paths. Add helpers for the registers
+hnat_hw_init() did not cover, called from both hnat_hw_init() and the
+debugfs handlers so each setting has a single write path.
+
+[How to Verify]
+Configure the settings through debugfs, dump the PPE registers,
+trigger a SER, then confirm the registers still hold.
 
 [Info to Customer]
 N/A
 
-Change-Id: I124b7f93a7c068ac87cd35343039470276baaf5e
+
+Change-Id: I4cc44b41b1c1fdf229c0c393623ef820f06c9b9b
 ```
 
 ### l1parser: [081bb31](https://github.com/chasey-dev/l1parser/commit/081bb31211efc74594d25bfd1bb5811f3408a205)
