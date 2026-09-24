@@ -97,6 +97,58 @@ function priorityQid(prio, base) {
 	return base + Math.floor((prio - 1) * 30 / 9);
 }
 
+/* Live value of a sibling option while editing.  Prefer the LuCI element;
+   fields rendered inside the edit modal live under ui.showModal (document
+   body), outside map.root, so map.findElement misses them - fall back to
+   the raw input/select node addressed by its cbid.  'this' is the option
+   whose validate is running. */
+function siblingUiValue(section_id, option) {
+	var el = null;
+
+	if (this.section && this.section.getUIElement)
+		el = this.section.getUIElement(section_id, option);
+
+	if (el && typeof el.getValue === 'function')
+		return el.getValue();
+
+	var node = document.querySelector(
+		'input[id="cbid.eqos.%s.%s"], select[id="cbid.eqos.%s.%s"]'
+			.format(section_id, option, section_id, option));
+
+	return node ? node.value : null;
+}
+
+/* Ports do not exist for ICMP.  Blocks "port + protocol ICMP" in both edit
+   orders (validating a port field, or switching protocol to ICMP while a
+   port is filled).  A port with protocol Any is valid and means "every
+   port-carrying protocol": the script expands it into tcp + udp rules
+   (emit_priority_mark) instead of dropping the port. */
+function validatePortProtocol(section_id, value, checkingPort) {
+	var proto, sport, dport;
+
+	if (checkingPort) {
+		if (!value)
+			return true;
+		proto = siblingUiValue.call(this, section_id, 'protocol');
+	} else {
+		proto = value;
+
+		if (proto !== 'icmp')
+			return true;
+
+		sport = siblingUiValue.call(this, section_id, 'sport');
+		dport = siblingUiValue.call(this, section_id, 'dport');
+
+		if (!sport && !dport)
+			return true;
+	}
+
+	if (proto !== 'icmp')
+		return true;
+
+	return _('A port can only be used with TCP or UDP. Select a protocol first.');
+}
+
 return view.extend({
 	load: function() {
 		return Promise.all([
@@ -164,7 +216,7 @@ return view.extend({
 		o.editable = true;
 
 		o = gs.taboption('general', form.Value, 'queue', _('Queue ID'),
-			_('Values 1-31 use HNAT HQoS. Values 32 and above use software shaping.'));
+			_('Upload-direction queue number: 1-31 uses HNAT HQoS, 32 and above uses software shaping. The download side maps automatically to N+31; do not enter a download queue number.'));
 		o.datatype = 'and(uinteger,min(1),max(65535))';
 		o.placeholder = '1';
 		o.rmempty = false;
@@ -271,6 +323,39 @@ return view.extend({
 		o.datatype = 'and(uinteger,min(1),max(62))';
 		o.placeholder = '14';
 		o.write = integerWrite;
+		/* Reverse guard: an empty value still means the script default (14),
+		   so collisions are checked against the effective queue. */
+		o.validate = function(section_id, value) {
+			var sp = Number(value || 14);
+			var i;
+
+			var rules = uci.sections('eqos', 'priority_rule');
+			for (i = 0; i < rules.length; i++) {
+				if (rules[i].enabled === '0')
+					continue;
+				var p = Number(rules[i].priority || 5);
+				var d = rules[i].direction || 'both';
+				if ((d === 'up' || d === 'both') && priorityQid(p, 1) === sp)
+					return _('Upload queue %s is already used by another rule.').format(sp);
+				if ((d === 'down' || d === 'both') && priorityQid(p, 32) === sp)
+					return _('Download queue %s is already used by another rule.').format(sp);
+			}
+
+			var devices = uci.sections('eqos', 'device');
+			for (i = 0; i < devices.length; i++) {
+				if (devices[i].enabled === '0')
+					continue;
+				var slot = Number(devices[i].queue || devices[i].comment);
+				if (slot >= 1 && slot <= 31) {
+					if (sp === slot)
+						return _('Upload queue %s is already used by a device rule.').format(slot);
+					if (sp === 31 + slot)
+						return _('Download queue %s is already used by a device rule.').format(31 + slot);
+				}
+			}
+
+			return true;
+		};
 
 		o = s.option(form.SectionValue, '__rules__', form.GridSection, 'priority_rule',
 			_('Priority rules'));
@@ -295,16 +380,35 @@ return view.extend({
 		o.value('udp', 'UDP');
 		o.value('icmp', 'ICMP');
 		o.default = '';
+		/* Table cell shows the effective match: protocol Any with a port is
+		   expanded to TCP + UDP rules by emit_priority_mark. */
+		o.textvalue = function(section_id) {
+			var proto = uci.get('eqos', section_id, 'protocol');
+			if (proto)
+				return proto.toUpperCase();
+			var port = uci.get('eqos', section_id, 'sport') ||
+				uci.get('eqos', section_id, 'dport');
+			return port ? 'TCP+UDP' : _('Any');
+		};
+		o.validate = function(section_id, value) {
+			return validatePortProtocol.call(this, section_id, value, false);
+		};
 
 		o = gs.option(form.Value, 'sport', _('Source port'),
 			_('Optional, e.g. 443 or 27000-27030.'));
 		o.datatype = 'or(port,portrange)';
 		o.rmempty = true;
+		o.validate = function(section_id, value) {
+			return validatePortProtocol.call(this, section_id, value, true);
+		};
 
 		o = gs.option(form.Value, 'dport', _('Dest port'),
 			_('Optional, e.g. 53 or 27000-27030.'));
 		o.datatype = 'or(port,portrange)';
 		o.rmempty = true;
+		o.validate = function(section_id, value) {
+			return validatePortProtocol.call(this, section_id, value, true);
+		};
 
 		o = gs.option(form.Value, 'dscp', _('DSCP'),
 			_('Optional DSCP value 0-63, e.g. 46 for EF.'));
@@ -323,18 +427,9 @@ return view.extend({
 			o.value(String(i), String(i));
 		o.default = '5';
 		o.rmempty = false;
-
-		o = gs.option(form.DummyValue, '_qidmap', _('Queue map'));
-		o.textvalue = function(section_id) {
-			var p = Number(uci.get('eqos', section_id, 'priority') || 5);
-			var d = uci.get('eqos', section_id, 'direction') || 'both';
-			var parts = [];
-			if (d === 'up' || d === 'both')
-				parts.push('%s: %s'.format(_('Upload'), priorityQid(p, 1)));
-			if (d === 'down' || d === 'both')
-				parts.push('%s: %s'.format(_('Download'), priorityQid(p, 32)));
-			return parts.join(' / ');
-		};
+		/* Must live on this ListValue: DummyValue widgets never run validators
+		   (form.js renders them without a vfunc), so a check attached to the
+		   queue-map display column is dead code. */
 		o.validate = function(section_id, value) {
 			var prio = Number(value);
 			var dir = uci.get('eqos', section_id, 'direction') || 'both';
@@ -361,6 +456,8 @@ return view.extend({
 				var sp = Number(uci.get('eqos', 'config', 'short_pkt_qid') || 14);
 				if ((dir === 'up' || dir === 'both') && qidUp === sp)
 					return _('Upload queue %s conflicts with the short-packet priority queue.').format(sp);
+				if ((dir === 'down' || dir === 'both') && qidDl === sp)
+					return _('Download queue %s conflicts with the short-packet priority queue.').format(sp);
 			}
 
 			var devices = uci.sections('eqos', 'device');
@@ -377,6 +474,31 @@ return view.extend({
 			}
 
 			return true;
+		};
+
+		o = gs.option(form.Flag, 'sp_redirect', _('Small packets to the short-packet priority queue'),
+			_('Re-marks the small packets matched by this rule (pure TCP ACKs and packets up to the short-flow bound) into the short-packet priority queue, so ACKs do not queue behind bulk traffic inside this rule\'s queue. Requires Short-packet priority and a port.'));
+		o.rmempty = true;
+		/* Flag widgets DO run validators (ui.Checkbox receives the vfunc),
+		   unlike DummyValue. */
+		o.validate = function(section_id, value) {
+			if (value !== '1')
+				return true;
+			if (uci.get('eqos', 'config', 'short_pkt_priority') !== '1')
+				return _('Enable Short-packet priority first.');
+			return true;
+		};
+
+		o = gs.option(form.DummyValue, '_qidmap', _('Queue map'));
+		o.textvalue = function(section_id) {
+			var p = Number(uci.get('eqos', section_id, 'priority') || 5);
+			var d = uci.get('eqos', section_id, 'direction') || 'both';
+			var parts = [];
+			if (d === 'up' || d === 'both')
+				parts.push('%s: %s'.format(_('Upload'), priorityQid(p, 1)));
+			if (d === 'down' || d === 'both')
+				parts.push('%s: %s'.format(_('Download'), priorityQid(p, 32)));
+			return parts.join(' / ');
 		};
 
 		/* ----------------------------------------------------- tab: monitor */

@@ -258,22 +258,67 @@ priority_qid() {
 	echo $((base + (prio - 1) * 30 / 9))
 }
 
-# Configure a hardware queue with the given scheduler and WRR weight,
-# no rate limit (rate limiting is the job of device rules).
+# Read the current qdma_txqN state back from debugfs and print five numbers:
+# "<min_en> <min_rate> <max_en> <max_rate> <weight>".  The readback is a
+# small table whose "max"/"min" rows carry the programmed values; anything
+# that cannot be parsed falls back to zero, which reproduces the plain
+# write behaviour of an empty queue.
+read_queue_state() {
+	local qid="$1"
+	local key a b c
+	local min_e=0 min_r=0 max_e=0 max_r=0 weight=0
+
+	if [ -r "$HNAT_DIR/qdma_txq$qid" ]; then
+		while read -r key a b c; do
+			case "$key" in
+			max)
+				is_uinteger "$a" && max_e="$a"
+				is_uinteger "$b" && max_r="$b"
+				is_uinteger "$c" && weight="$c"
+				;;
+			min)
+				is_uinteger "$a" && min_e="$a"
+				is_uinteger "$b" && min_r="$b"
+				;;
+			esac
+		done < "$HNAT_DIR/qdma_txq$qid"
+	fi
+
+	echo "$min_e $min_r $max_e $max_r $weight"
+}
+
+# Configure a hardware queue with the given scheduler and WRR weight using
+# read-modify-write: the scheduler comes from this caller (the lane owns
+# placement), a rate limit already programmed by a device rule is preserved
+# instead of being cleared, the min-rate fields are kept as-is, and the
+# weight takes the maximum of all claimants (device 4 / short-packet 10 /
+# priority level).  Setting a rate limit remains the job of device rules.
 program_priority_queue() {
 	local qid="$1"
 	local sch="$2"
 	local weight="$3"
 
-	write_hnat "qdma_txq$qid" "$sch 0 0 0 0 $weight 1"
+	set -- $(read_queue_state "$qid")
+
+	[ "$weight" -ge "$5" ] || weight="$5"
+
+	write_hnat "qdma_txq$qid" "$sch $1 $2 $3 $4 $weight 1"
 }
 
 # Emit an nft rule that marks matching packets to the given queue.  When a
 # port is configured both sport and dport are matched (port does not carry
 # direction semantics here), direction is handled via iifname/oifname.
+# No protocol selected but a port configured: treated as "any protocol" with
+# the port constraint kept by matching every protocol that carries ports
+# (tcp + udp) instead of silently dropping the port.
+# Optional small-packet rescue (spq = short-packet queue id, splen = short
+# flow length): emits extra rules after the general ones that re-mark this
+# rule's own small packets into spq, so ACKs do not queue behind bulk in
+# the rule's queue.  nft evaluates every rule and the last mark wins.
 emit_priority_mark() {
 	local dir="$1" proto="$2" sport="$3" dport="$4" dscp="$5" qid="$6" dev="$7"
-	local iface extra
+	local spq="$8" splen="$9"
+	local iface extra p bound
 
 	case "$dir" in
 		up) iface="iifname \"$dev\"" ;;
@@ -299,8 +344,29 @@ emit_priority_mark() {
 			"$NFT" add rule "$TABLE_FAMILY" "$TABLE_NAME" "$CHAIN_NAME" \
 				$iface meta l4proto icmp $extra meta mark set "$qid" 2>/dev/null
 			;;
+		"")
+			# Protocol unset: a configured port still carries meaning.  Keep
+			# it by matching on every protocol that has ports (tcp + udp)
+			# instead of falling into the match-all branch and dropping it.
+			if [ -n "$sport" ] || [ -n "$dport" ]; then
+				for p in tcp udp; do
+					if [ -n "$sport" ]; then
+						"$NFT" add rule "$TABLE_FAMILY" "$TABLE_NAME" "$CHAIN_NAME" \
+							$iface $p sport "$sport" $extra meta mark set "$qid" 2>/dev/null
+					fi
+					if [ -n "$dport" ]; then
+						"$NFT" add rule "$TABLE_FAMILY" "$TABLE_NAME" "$CHAIN_NAME" \
+							$iface $p dport "$dport" $extra meta mark set "$qid" 2>/dev/null
+					fi
+				done
+			else
+				# No port either: plain match-all rule (original behaviour)
+				"$NFT" add rule "$TABLE_FAMILY" "$TABLE_NAME" "$CHAIN_NAME" \
+					$iface $extra meta mark set "$qid" 2>/dev/null
+			fi
+			;;
 		*)
-			# any protocol
+			# Unknown protocol value: match-all, ports are not applicable
 			"$NFT" add rule "$TABLE_FAMILY" "$TABLE_NAME" "$CHAIN_NAME" \
 				$iface $extra meta mark set "$qid" 2>/dev/null
 			;;
@@ -310,8 +376,47 @@ emit_priority_mark() {
 	if [ "$proto" = "tcp" ] || [ "$proto" = "udp" ]; then
 		if [ -z "$sport" ] && [ -z "$dport" ]; then
 			"$NFT" add rule "$TABLE_FAMILY" "$TABLE_NAME" "$CHAIN_NAME" \
-				$iface $proto $extra meta mark set "$qid" 2>/dev/null
+				$iface meta l4proto $proto $extra meta mark set "$qid" 2>/dev/null
 		fi
+	fi
+
+	# Small-packet rescue block (needs a port to be meaningful): same match
+	# terms as the general rules plus a wire-length bound approximating the
+	# kernel short-packet definition (pure TCP ACKs are at most 80 bytes on
+	# the wire; UDP gets the configured short-flow length plus 28 header
+	# bytes).  IPv4 only - "ip length" does not match v6.
+	if [ -n "$spq" ] && is_uinteger "$spq" && is_uinteger "$splen" &&
+	   { [ -n "$sport" ] || [ -n "$dport" ]; }; then
+		bound=$((splen + 28))
+		[ "$bound" -lt 80 ] && bound=80
+		case "$proto" in
+			tcp|udp)
+				if [ -n "$sport" ]; then
+					"$NFT" add rule "$TABLE_FAMILY" "$TABLE_NAME" "$CHAIN_NAME" \
+						$iface $proto sport "$sport" $extra ip length 1-$bound \
+						meta mark set "$spq" 2>/dev/null
+				fi
+				if [ -n "$dport" ]; then
+					"$NFT" add rule "$TABLE_FAMILY" "$TABLE_NAME" "$CHAIN_NAME" \
+						$iface $proto dport "$dport" $extra ip length 1-$bound \
+						meta mark set "$spq" 2>/dev/null
+				fi
+				;;
+			"")
+				for p in tcp udp; do
+					if [ -n "$sport" ]; then
+						"$NFT" add rule "$TABLE_FAMILY" "$TABLE_NAME" "$CHAIN_NAME" \
+							$iface $p sport "$sport" $extra ip length 1-$bound \
+							meta mark set "$spq" 2>/dev/null
+					fi
+					if [ -n "$dport" ]; then
+						"$NFT" add rule "$TABLE_FAMILY" "$TABLE_NAME" "$CHAIN_NAME" \
+							$iface $p dport "$dport" $extra ip length 1-$bound \
+							meta mark set "$spq" 2>/dev/null
+					fi
+				done
+				;;
+		esac
 	fi
 }
 
@@ -321,7 +426,7 @@ emit_priority_mark() {
 apply_priority_rules() {
 	local dev="$DEV_DEFAULT"
 	local cfg enabled protocol sport dport dscp direction prio cur
-	local qid_up qid_dl
+	local qid_up qid_dl sp_qid sp_len
 
 	need_nft
 	if ! "$NFT" list table "$TABLE_FAMILY" "$TABLE_NAME" >/dev/null 2>&1; then
@@ -344,6 +449,21 @@ apply_priority_rules() {
 		qid_up="$(priority_qid "$prio" 1)"
 		qid_dl="$(priority_qid "$prio" 32)"
 
+		# Optional small-packet rescue: re-mark this rule's own small packets
+		# into the short-packet queue so ACKs matched by the rule are not
+		# queued behind bulk traffic in the rule's queue.
+		sp_qid=""; sp_len=64
+		if [ "$(uci -q get eqos.config.short_pkt_priority)" = "1" ] &&
+		   [ "$(uci -q get eqos.$cfg.sp_redirect)" = "1" ] &&
+		   { [ -n "$sport" ] || [ -n "$dport" ]; }; then
+			sp_qid="$(uci -q get eqos.config.short_pkt_qid)"
+			[ -n "$sp_qid" ] && is_uinteger "$sp_qid" || sp_qid=14
+			[ "$sp_qid" -ge 1 ] && [ "$sp_qid" -le 62 ] || sp_qid=14
+			sp_len="$(uci -q get eqos.config.short_pkt_len)"
+			[ -n "$sp_len" ] && is_uinteger "$sp_len" || sp_len=64
+			[ "$sp_len" -ge 16 ] && [ "$sp_len" -le 128 ] || sp_len=64
+		fi
+
 		# HQoS mode must be on for the mark -> queue mapping to apply
 		if [ -e "$HNAT_DIR/qos_toggle" ]; then
 			cur="$(cat "$HNAT_DIR/qos_toggle" 2>/dev/null)"
@@ -354,11 +474,11 @@ apply_priority_rules() {
 
 		if [ "$direction" = "up" ] || [ "$direction" = "both" ]; then
 			program_priority_queue "$qid_up" "$UP_SCH" "$prio"
-			emit_priority_mark up "$protocol" "$sport" "$dport" "$dscp" "$qid_up" "$dev"
+			emit_priority_mark up "$protocol" "$sport" "$dport" "$dscp" "$qid_up" "$dev" "$sp_qid" "$sp_len"
 		fi
 		if [ "$direction" = "down" ] || [ "$direction" = "both" ]; then
 			program_priority_queue "$qid_dl" "$DL_SCH" "$prio"
-			emit_priority_mark down "$protocol" "$sport" "$dport" "$dscp" "$qid_dl" "$dev"
+			emit_priority_mark down "$protocol" "$sport" "$dport" "$dscp" "$qid_dl" "$dev" "$sp_qid" "$sp_len"
 		fi
 	done
 
@@ -438,13 +558,23 @@ ensure_tc_qos() {
 	start_qos "$dev" "$dl" "$up"
 }
 
+# Device-rule rate limit, read-modify-write: placement (scheduler) comes
+# from the lane, the rate limit is owned by the device rule, min-rate
+# fields are kept as-is, and the weight is at least 4 (a higher claimant
+# such as a priority rule or the short-packet queue keeps its weight).
 program_queue() {
 	local qid="$1"
 	local sch="$2"
 	local rate="$3"
+	local weight=4
 
 	[ "$rate" -eq 0 ] && return 0
-	write_hnat "qdma_txq$qid" "$sch 0 0 1 $rate 4 1"
+
+	set -- $(read_queue_state "$qid")
+
+	[ "$weight" -ge "$5" ] || weight="$5"
+
+	write_hnat "qdma_txq$qid" "$sch $1 $2 1 $rate $weight 1"
 }
 
 tc_filter_rule() {
