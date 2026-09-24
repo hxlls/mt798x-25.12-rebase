@@ -2,7 +2,7 @@ msgid ""
 msgstr "Content-Type: text/plain; charset=UTF-8"
 
 msgid "1 lowest .. 10 highest. Maps to upload queue 1-31 / download queue 32-62. Custom rules take precedence over short-packet auto detection."
-msgstr "1 最低 .. 10 最高。映射到上传队列 1-31 / 下载队列 32-62。自定义规则优先于短包自动识别。"
+msgstr "1 最低 .. 10 最高。映射到上传队列 1-31 / 下载队列 32-62。自定义规则优先于小包自动识别。"
 
 msgid "A port can only be used with TCP or UDP. Select a protocol first."
 msgstr "端口仅适用于 TCP 或 UDP，请先选择协议。"
@@ -149,7 +149,7 @@ msgid "Re-marks the small packets matched by this rule (pure TCP ACKs and packet
 msgstr "把本规则命中的小包（TCP 纯 ACK 及不超过小包长度上限的包）改写入小包优先队列，避免 ACK 在本规则队列里排在大包后面。需先开启小包优先并填写端口。"
 
 msgid "Recognizes short flows (TCP ACK / small UDP) in hardware before offload and puts them into the priority queue below. Tune it with \"Short-flow length\" and \"Priority queue ID\". Works on any port, including direct 2.5G."
-msgstr "开启后，硬件会在卸载前自动识别短包流（TCP ACK / 小 UDP），并将其送入下方“优先队列编号”指定的队列。可用“小包长度阈值”和“优先队列编号”调整。任意端口（含 2.5G 直连）均生效。"
+msgstr "开启后，硬件会在卸载前自动识别小包流（TCP ACK / 小 UDP），并将其送入下方“优先队列编号”指定的队列。可用“小包长度阈值”和“优先队列编号”调整。任意端口（含 2.5G 直连）均生效。"
 
 msgid "Settings"
 msgstr "设置"
@@ -161,7 +161,7 @@ msgid "Short-flow length"
 msgstr "小包长度阈值"
 
 msgid "Short-packet flows (TCP ACK / small UDP) are steered to this hardware queue. On MTK hardware larger queue numbers mean higher priority. To give it a speed limit, add a Device rule below and enter the same number as its Queue ID: Queue ID N limits upload queue N and download queue N+31. Default 14."
-msgstr "短包流（TCP ACK / 小 UDP）会进入这个硬件队列。在 MTK 硬件上，队列编号越大优先级越高。若要给它限速，在下方“设备规则”中新增一条并把 Queue ID 填成相同数字即可：Queue ID 填 N 会同时限制上传队列 N 与下载队列 N+31。默认 14。"
+msgstr "小包流（TCP ACK / 小 UDP）会进入这个硬件队列。在 MTK 硬件上，队列编号越大优先级越高。若要给它限速，在下方“设备规则”中新增一条并把 Queue ID 填成相同数字即可：Queue ID 填 N 会同时限制上传队列 N 与下载队列 N+31。默认 14。"
 
 msgid "Short-packet priority"
 msgstr "小包优先"
