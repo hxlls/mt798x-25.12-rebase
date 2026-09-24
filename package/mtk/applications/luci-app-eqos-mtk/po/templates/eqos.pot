@@ -4,6 +4,9 @@ msgstr "Content-Type: text/plain; charset=UTF-8"
 msgid "1 lowest .. 10 highest. Maps to upload queue 1-31 / download queue 32-62. Custom rules take precedence over short-packet auto detection."
 msgstr ""
 
+msgid "A port can only be used with TCP or UDP. Select a protocol first."
+msgstr ""
+
 msgid "Active queues only"
 msgstr ""
 
@@ -34,6 +37,9 @@ msgstr ""
 msgid "Download"
 msgstr ""
 
+msgid "Download queue %s conflicts with the short-packet priority queue."
+msgstr ""
+
 msgid "Download queue %s is already used by a device rule."
 msgstr ""
 
@@ -44,6 +50,9 @@ msgid "EQoS"
 msgstr ""
 
 msgid "Enable"
+msgstr ""
+
+msgid "Enable Short-packet priority first."
 msgstr ""
 
 msgid "General Settings"
@@ -136,10 +145,16 @@ msgstr ""
 msgid "Rate"
 msgstr ""
 
+msgid "Re-marks the small packets matched by this rule (pure TCP ACKs and packets up to the short-flow bound) into the short-packet priority queue, so ACKs do not queue behind bulk traffic inside this rule's queue. Requires Short-packet priority and a port."
+msgstr ""
+
 msgid "Recognizes short flows (TCP ACK / small UDP) in hardware before offload and puts them into the priority queue below. Tune it with \"Short-flow length\" and \"Priority queue ID\". Works on any port, including direct 2.5G."
 msgstr ""
 
 msgid "Settings"
+msgstr ""
+
+msgid "Small packets to the short-packet priority queue"
 msgstr ""
 
 msgid "Short-flow length"
@@ -178,7 +193,7 @@ msgstr ""
 msgid "Upload queue %s is already used by another rule."
 msgstr ""
 
-msgid "Values 1-31 use HNAT HQoS. Values 32 and above use software shaping."
+msgid "Upload-direction queue number: 1-31 uses HNAT HQoS, 32 and above uses software shaping. The download side maps automatically to N+31; do not enter a download queue number."
 msgstr ""
 
 msgid "unlimited"
