@@ -263,7 +263,7 @@ const methods = {
 					// conntrack pads its columns with several spaces; replace() only
 					// substitutes the first occurrence, so split on a regex.
 					let f = split(trim(line), /[ \t]+/);
-					let s1 = null, s2 = null, port = null;
+					let s1 = null, s2 = null, d1 = null, port = null;
 					let peer_port = null, host_port = null, packets = null, bytes = null;
 
 					for (let i = 0; i < length(f); i++) {
@@ -272,6 +272,12 @@ const methods = {
 								s1 = substr(f[i], 4);
 							else if (s2 == null)
 								s2 = substr(f[i], 4);
+						}
+						else if (index(f[i], 'dst=') == 0) {
+							// only the original direction: that is the one that
+							// decides whether the flow was address-translated
+							if (d1 == null)
+								d1 = substr(f[i], 4);
 						}
 						else if (index(f[i], 'sport=') == 0) {
 							if (peer_port == null)
@@ -306,6 +312,15 @@ const methods = {
 
 					// must go through the fullcone rules, not plain masquerade
 					if (!all_proto && fproto[f[2]] != true)
+						continue;
+
+					// Never DNAT'ed -> not an inbound NAT flow. A genuinely inbound
+					// fullcone flow is rewritten from the wan address to a LAN host,
+					// so its two tuples differ. tproxy hands diverted traffic to a
+					// local socket instead, leaving both tuples on the same address
+					// (original dst == reply src); listing it as a peer is wrong.
+					// Range-agnostic: no fake-ip CIDR, no tlink config involved.
+					if (d1 != null && d1 == s2)
 						continue;
 
 					inbound++;
